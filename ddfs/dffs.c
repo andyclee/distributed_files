@@ -8,6 +8,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define SLAVE_COUNT
+
 /*
  * Toy getattr function just to test if filesystem properly mounts
  * Code taken from tutorial:
@@ -32,8 +34,33 @@ static int df_getattr(const char* path, struct stat* st) {
 	return 0;
 }
 
+/*
+ * Opens a stream that will read in a string
+ */
+static int df_open(const char* path) {
+
+}
+
+/*
+ * Take a string and distribute it amongst the slaves
+ */
+static int df_read(const char* path, char* buf, size_t size, off_t offset) {
+
+}
+
+static int df_write_slave(const char* path, const char* buf, size_t size) {
+
+}
+
+static int df_write(const char* path, const char* buf, size_t size, off_t offset) {
+
+}
+
 static struct fuse_operations operations = {
-	.getattr = df_getattr,
+	.getattr	= df_getattr,
+	.open		= df_open,
+	.read		= df_read,
+	.write		= df_write,
 };
 
 int main(int argc, char* argv[]) {
