@@ -28,6 +28,30 @@ char* encrypt_f(char* str){
 char* decrypt_f(char* str){
   return str;
 }
+
+/**
+ * Send a string
+**/
+int send_s(int sock, char* buffer, const char* filename) {
+  buffer = encrypt_f(buffer);
+  //set header!
+  header x;
+  x.filesize = strlen(buffer+sizeof(header));
+  x.cmd = 'u';
+  strncpy(x.filename, filename, strlen(filename));
+  x.filename[strlen(filename)] = '\0';
+  memcpy(buffer, &x, sizeof(header));
+
+  char* mesg = buffer;
+
+  // send
+
+  // data that will be sent to the server
+  const char* data_to_send = mesg;
+  send(sock, data_to_send, sizeof(header) + x.filesize, 0);
+  return 0;
+}
+
 /**
  * fliename must be within 30 chars
  **/
@@ -40,98 +64,93 @@ int send_f(int sock, const char* filename) {
 
 
   char* mesg;
-  char buffer[4096];
-  memset(buffer, '\0', 4096);
+
 
   FILE* fd;
   fd = fopen(filename,"r");
   if (fd == NULL){
     return -1;
-  } else {
+  }
     fseek(fd,0,SEEK_END);
     size_t len = ftell(fd);
+    char* buffer = malloc(sizeof(header)+len+1);
+    memset(buffer, '\0', sizeof(header)+len+1);
     fseek(fd,0,SEEK_SET);
     fread(buffer+sizeof(header),1,len, fd);
     buffer[sizeof(header)+len] = '\0';
-    encrypt_f(buffer);
     fclose(fd);
-  }
 
-  //set header!
-  header x;
-  x.filesize = strlen(buffer+sizeof(header));
-  x.cmd = 'u';
-  strncpy(x.filename, filename, strlen(filename));
-  x.filename[strlen(filename)] = '\0';
-  memcpy(buffer, &x, sizeof(header));
+    int ret = send_s(sock, buffer,filename);
 
-  mesg = buffer;
+    free(buffer);
 
-  // send
+    return ret;
 
-  // data that will be sent to the server
-  const char* data_to_send = mesg;
-  send(sock, data_to_send, sizeof(header) + x.filesize, 0);
-  return 0;
+}
+
+/**
+ * Receive a string
+**/
+
+char* receive_s(int sock, const char* filename){
+
+    char buffer[sizeof(header)];
+    header x;
+    x.filesize = 0;
+    x.cmd = 'd';
+    strncpy(x.filename, filename, strlen(filename));
+    x.filename[strlen(filename)] = '\0';
+
+    memcpy(buffer, &x, sizeof(header));
+
+    // send
+    // send the header
+    const char* data_to_send = (const char*)buffer;
+    send(sock, data_to_send, sizeof(header), 0);
+
+    // receive
+    //receive the string that contain the file
+
+    char head [sizeof(header)];
+    int len = read(sock, head, sizeof(header));
+
+    header r;
+    r = *(header*)head;
+    if (r.cmd!='d'){
+      printf("%c,%d\n",r.cmd,len);
+      perror("1\n");
+      return NULL;
+    }
+
+    char* buffer2 = malloc(r.filesize+1);
+    len = read(sock,buffer2, r.filesize);
+    buffer2[r.filesize] = '\0';
+
+    buffer2 = decrypt_f(buffer2);
+    return buffer2;
 }
 
 int receive_f(int sock, const char* filename){
 
-  char buffer[sizeof(header)];
-  header x;
-  x.filesize = 0;
-  x.cmd = 'd';
-  strncpy(x.filename, filename, strlen(filename));
-  x.filename[strlen(filename)] = '\0';
-
-  memcpy(buffer, &x, sizeof(header));
-
-  // send
-  // send the header
-  const char* data_to_send = (const char*)buffer;
-  send(sock, data_to_send, sizeof(header), 0);
-
-  // receive
-  //receive the string that contain the file
-  /*int n = 0;
-  int len = 0, maxlen = 4096;
-  char buffer2[maxlen];
-  char* pbuffer = buffer2;
-
-  // will remain open until the server terminates the connection
-  while ((n = recv(sock, pbuffer, maxlen, 0)) > 0) {
-    pbuffer += n;
-    maxlen -= n;
-    len += n;
-  }
-  buffer2[len] = '\0';*/
-  char head [sizeof(header)];
-  int len = read(sock, head, sizeof(header));
-
-  header r;
-  r = *(header*)head;
-  if (r.cmd!='d'){
-    printf("%c,%d\n",r.cmd,len);
-    perror("1\n");
+  char* buffer2 = receive_s(sock,filename);
+  if (buffer2==NULL) {
     return -1;
   }
-
-  char buffer2[r.filesize+1];
-  len = read(sock,buffer2, r.filesize);
-  buffer2[r.filesize] = '\0';
 
  //write the string to filename
   FILE* fd;
   fd = fopen(filename, "w");
   if (fd==NULL){
     perror("2\n");
+    free(buffer2);
     return -1;
   }else{
-    decrypt_f(buffer2);
     fputs(buffer2,fd);
     fclose(fd);
+    free(buffer2);
+    return 0;
   }
-  return 0;
+
 }
 
 int main(int argc, char **argv) {

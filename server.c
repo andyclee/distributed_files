@@ -31,22 +31,24 @@ int upload_f(const char *filename, const char* buffer){
 
 int download_f (int sock, const char* filename) {
   char* mesg;
-  char buffer[4096];
-  memset(buffer, '\0', 4096);
 
   FILE* fd;
   fd = fopen(filename,"r");
   if (fd == NULL){
     return -1;
-  } else {
+  }
     fseek(fd,0,SEEK_END);
     size_t len = ftell(fd);
+
+    char buffer[len+1];
+    memset(buffer, '\0', len+1);
+
     fseek(fd,0,SEEK_SET);
     fread(buffer+sizeof(header),1,len, fd);
     buffer[sizeof(header)+len] = '\0';
     fclose(fd);
-  }
-  fflush();
+
+  //fflush();
   //set header!
   header x;
   x.filesize = strlen(buffer+sizeof(header));
