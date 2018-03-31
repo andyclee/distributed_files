@@ -8,64 +8,69 @@
 #include <string.h>
 #include <math.h>
 
-#define TOTAL_ENCRYPTION 2;
-#define RSA_e 11
-#define RSA_N 2257
-#define RSA_N_digit 4
+#define RSA_e 7
+#define RSA_d 103
+#define RSA_N 143
+#define RSA_N_digit 2
 #define TRANSPOSE 5
 
-char* transpose_encryption(char* str) {
-    char* encrypt = malloc(strlen(str) + 1);
-    encrypt[strlen(str)] = '\0';
-    for(size_t i = 0; i < strlen(str); i++) {
-	int round = (strlen(str)-1)/TRANSPOSE + 1;
-	int pos = (i%TRANSPOSE)*round + (i/TRANSPOSE);
-	encrypt[pos] = str[i];
-    }
-    return encrypt;
-}
+/**
+ Use transpose and RSA encrytion and decrytion method
+*/
 
-char* RSA_encryption(char* str) {
-    char* encrypt = malloc(strlen(str) * 4 + 1);
-    encrypt[strlen(str) * 4] = '\0';
-    for(size_t i = 0; i < strlen(str); i++) {
+char* encryption(char* str) { 
+    if(str == NULL) {
+	return NULL;
+    }   
+    size_t size = strlen(str);
+    char* encrypt = malloc(size + 1);
+    encrypt[size] = '\0';
+    /*
+    for(size_t i = 0; i < size; i++) {
+        int round = (size-1)/TRANSPOSE + 1;
+        int pos = (i%TRANSPOSE)*round + (i/TRANSPOSE);
+        encrypt[pos] = str[i];
+    }    
+    */
+    for(size_t i = 0; i < size; i++) {
 	int c = (int)str[i];
+	
 	int rs = 1;
 	for(size_t j = 0; j < RSA_e; j++) {
 	    rs = (rs * c) % RSA_N;
 	}
-	for(size_t k = 0; k < RSA_N_digit; k++) {
-	    int digit = 1;
-	    for(size_t m = 0; m < (RSA_N_digit - k -1); m++) {
-		digit = digit * 10;
-	    } 
-	    encrypt[4 * i + k] = ('0' + rs / digit);
-	    rs = rs - rs/digit * digit;
-	}
+	encrypt[i] = (char) rs;
     }
     return encrypt;
 }
 
-char* encryption(char* str, size_t type) {
-    char* result;
-    switch(type) {
-	case 1:
-	    result = transpose_encryption(str);
-	    break;
-	case 2:
-	    result = RSA_encryption(str);
-	    break;
-	default:
-	    result = NULL;
+char* decryption(char* str) {
+    if(str == NULL) {
+	return NULL;
     }
-    return result;
-}
-
-int main() {
-    char* str = "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do.";
-    char* hidden = encryption(str, 2);
-    printf("%s\n", hidden);
-    char* hidden2 = encryption(str, 1);
-    printf("%s\n", hidden2);
-    return 0;
+    size_t size = strlen(str);
+    char* decrypt = malloc(size + 1);
+    decrypt[size] = '\0';    
+    for(size_t i = 0; i < size; i++) {
+	int num = (int)str[i];
+	if(num < 0) {
+	    num = num + 256;
+	}
+        int rs = 1;
+        for(int j = 0; j < RSA_d; j++) {
+            rs = (rs * num) % RSA_N;
+        }
+        decrypt[i] = (char)rs;
+	//decrypt[i] = str[i];
+    }
+    /*
+    char* decrypt2 = malloc(size + 1);
+    decrypt2[size] = '\0';
+    for(size_t i = 0; i < size; i++) {
+        int round = (size-1)/TRANSPOSE + 1;
+        int pos = (i/round) + TRANSPOSE*(i%round);
+        decrypt2[pos] = str[i];
+    }
+    free(decrypt);*/
+    return decrypt;
 }
