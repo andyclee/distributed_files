@@ -20,9 +20,40 @@ typedef struct df_data {
 	char* slaveLoc[SLAVE_COUNT];
 } df_data;
 
+typedef struct file_data {
+	char* filename;
+	size_t filesize;
+} file_data;
+
 static void df_getpath(char* fpath, const char* path) {
 	strcpy(fpath, DF_DATA->rootFile);
 	strcat(fpath, path + 1);
+}
+
+file_data* get_file_data(char* file_info) {
+	file_data* fd = malloc(sizeof(file_data));
+	char* fn = strtok(file_info, ",");
+	fd->filename = malloc(strlen(fn) + 1);
+	strcpy(fd->filename, fn);
+	fd->filesize = strtol(strtok(file_info, ","), NULL, 10);
+	return fd;
+}
+
+void destroy_file_data(file_data* fd) {
+	free(fd->filename);
+	free(fd);
+}
+
+size_t get_slave_size(char* slave_info) {
+	return strtol(slave_info, NULL, 10);
+}
+
+char* get_slave_fn(int slave_idx, char* slave_name) {
+		strcpy(slave_name, "slave");
+		char* slave_num[5];
+		itoa(slave_idx, slave_num, 10);
+		strcat(slave_name, slave_num);
+		strcat(slave_name, ".csv");
 }
 
 /*
@@ -59,27 +90,34 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 		off_t offset, struct fuse_file_info* fi) {
 	(void) offset;
 
-	char realPath[PATH_MAX];
-	df_getpath(realPath, path);
-	fprintf(stderr, "Attempting to readdir, path: %s\n", realPath);
+	fprintf(stderr, "Attempting to readdir, slave path: %s\n", realPath);
 
-	DIR* dirPtr = opendir(realPath);
-	if (dirPtr == NULL)
-		fprintf(stderr, "Directory unabled to be opened\n");
-
-	struct dirent* de = readdir(dirPtr);
-	if (de == 0) {
-		fprintf(stderr, "An error occured while reading directory with fh: %zu\n", fi->fh);
+	FILE* server_file = fopen(path, "r");
+	if (!server_file) {
+		fprintf(stderr, "Slave not found!\n");
 		return 1;
 	}
 
-	while ((de = readdir(dirPtr)) != NULL) {
-		if (filler(buf, de->d_name, NULL, 0) != 0)
-			return 2;
+	char fi_buff[1024];
+	while (fgets(fi_buff, 1024, server_file) != NULL) {
+		file_data* cur_fi = get_file_data(fi_buff);
+		filler(buf, cur_fi->filename, NULL, 0);
+		destroy_file_data(cur_fi);
 	}
 
-	fprintf(stderr, "Returning from readdir\n");
 	return 0;
+}
+
+bool slave_contains(const char* slave, const char* target_file) {
+	FILE* slave_file = fopen(slave, "r");
+	char fi_buff[1024];
+	while (fgets(fi_buff, 1024, slave_file) == NULL) {
+		file_data* cur_fi = get_file_data(fi_buff);
+		if (strcmp(cur_fi->filename, target_file) == 0)
+			return true;
+		destroy_file_data(cur_fi);
+	}
+	return false;
 }
 
 /*
@@ -88,12 +126,18 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 static int df_open(const char* path, struct fuse_file_info* fi) {
 	fprintf(stderr, "Attempting to open: %s\n", path);
 	(void) fi;
-	return 0;
+	char slave_fn[128];
+	for (int s = 0; s < SLAVE_COUNT; s++) {
+		get_slave_fn(s, slave_fn);
+		if (slave_contains(slave_fn, path)) {
+			return 0;
+		}
+	}
+
+	fprintf(stderr, "File not found!\n");
+	return 1;
 }
 
-/*
- * Take a string and distribute it amongst the slaves
- */
 static int df_read(const char* path, char* buf, size_t size, 
 		off_t offset, struct fuse_file_info* fi) {
 	fprintf(stderr, "Attempting to read: %s\n", path);
@@ -101,10 +145,18 @@ static int df_read(const char* path, char* buf, size_t size,
 	(void) size;
 	(void) offset;
 	(void) fi;
-	return 0;
+
+	char slave_fn[128];
+	for (int s = 0; s < SLAVE_COUNT; s++) {
+		get_slave_fn(s, slave_fn);
+		if (slave_contains(slave_fn, path)) {
+			return 0;
+		}
+	}
+	return 1;
 }
 
-static int df_write_slave(const char* path, const char* slave, const char* buf, size_t size) {
+static int df_write_slave(const char* path, size_t slave_idx, const char* buf, size_t size) {
 	(void) path;
 	(void) buf;
 	(void) size;
@@ -119,23 +171,45 @@ static int df_write(const char* path, const char* buf, size_t size,
 	(void) fi;
 
 	fprintf(stderr, "Attempting to write: %s\n", path);
-	char* smallestSlave = NULL;
-	size_t smallestSize = MAX_INT;
-	for (int i = 0; i < SLAVE_COUNT; i++) {
-		struct stat* thisSlave = NULL;
-		df_getattr(DF_DATA->slaveLoc[i], thisSlave);
-		if (thisSlave->size < smallestSize) {
-			smallestSize = thisSlave;
-			smallestSlave = DF_DATA->slaveLoc[i];
-		}
+	FILE* server_file = fopen("all_servers.csv", "r");
+	if (!server_file) {
+		fprintf(stderr, "All servers not found!\n");
+		return 1;
 	}
 
-	df_write_slave(path, smallestSlave, buf, size);
+	size_t min_size = 0;
+	size_t min_slave = 0;
+	size_t cur_slave = 0;
+	char fi_buff[1024];
+	while (fgets(fi_buff, 1024, server_file) != NULL) {
+		size_t cur_size = cur_slave_size(fi_buff);
+		if (cur_size < min_slave) {
+			min_size = cur_size;
+			min_slave = cur_slave;
+		}
+		cur_slave++;
+	}
+
+	df_write_slave(path, cur_slave, buf, size);
 	return 0;
 }
 
+/*
+ * Check that all metadata files exist, if not create them
+ */
 static void df_init(struct fuse_conn_info* conn) {
-	//Place locations of slaves here
+	FILE* as_ptr = fopen("all_servers.csv", "r");
+	if (as_ptr == NULL) {
+		as_ptr = fopen("all_servers.csv", "w+");
+		fwrite("0\n", 3, SLAVE_COUNT, as_ptr);
+	}
+	for (int f = 0; f < SLAVE_COUNT; f++) {
+		char slave_name[128];
+		get_slave_fn(slave_name, f);
+		FILE* cur_fptr = fopen(slave_name "r");
+		if (cur_fptr == NULL)
+			fopen(slave_name, "w+");
+	}
 }
 
 static struct fuse_operations df_oper = {
