@@ -1,18 +1,30 @@
 COMPILER = gcc
-FILESYSTEM_FILES = ddfs/dffs.c
 FUSE_FLAGS = -D_FILE_OFFSET_BITS=64
 COMPILE_FLAGS = -Wall -Wextra
+ROOT_DIR = ddfs/rootdir
+MOUNT_DIR = ddfs/mountdir
 
-all: ddfs client
+.PHONY: ddfs
+
+all: master client
 
 ddfs:
-	$(COMPILER) $(COMPILE_FLAGS) $(FUSE_FLAGS) -o dffs $(FILESYSTEM_FILES) `pkg-config fuse --cflags --libs`
+	@mkdir -p $(ROOT_DIR)
+	@mkdir -p $(MOUNT_DIR)
+	$(COMPILER) $(COMPILE_FLAGS) $(FUSE_FLAGS) -o dffs dffs.c `pkg-config fuse --cflags --libs`
+	@echo '----------------------------------------------------'
 	@echo 'Mount by: ./dffs -o auto_unmount rootdir mountdir'
 	@echo 'Use flag '-d' before '-o' for debug mode'
 	@echo 'Manually unomount by: fusermount -u mountdir'
+	@echo '----------------------------------------------------'
 
 client:
-	$(COMPILER) $(COMPILER_FLAGS) -o client_app client_app.c
+	$(COMPILER) $(COMPILE_FLAGS) -o client_app client_app.c
+
+master: ddfs
+	$(COMPILER) $(COMPILE_FLAGS) -o master_app master_app.c
 
 clean:
-	@-rm dffs
+	@-rm -f dffs
+	@-rm -f master_app
+	@-rm -f client_app
