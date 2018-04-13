@@ -11,6 +11,9 @@ int main() {
     printf("done encripting\n");
     char* decrypt = decryption(encrypt);
     printf("%s\n", decrypt);
+
+    free(encrypt);
+    free(decrypt);
     return 0;
 }
 

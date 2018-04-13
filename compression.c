@@ -92,7 +92,7 @@ int empty(Minheap* minheap) {
 }
 
 int has_child(Minheap* minheap, int idx) {
-    if((idx * 2 + 1) < minheap->size) {
+    if((idx * 2 + 1) < (int) minheap->size) {
 	return 1;
     } else {
 	return 0;
@@ -100,7 +100,7 @@ int has_child(Minheap* minheap, int idx) {
 }
 
 int min_child(Minheap* minheap, int idx) {
-    if(right_child(idx) >= minheap->size) {
+    if(right_child(idx) >= (int) minheap->size) {
 	return left_child(idx);
     } else {
 	return compare_min(minheap, left_child(idx), right_child(idx));
@@ -320,7 +320,11 @@ int count_occurrence(char* str) {
 	freq[i] = 0;
     }
     for(int i = 0; i < len; i++) {
-	freq[(int)(str[i])]++;
+	int c = (int) str[i];
+	if(c < 0) {
+	    c = c + 256;
+	}
+	freq[c]++;
     } 
     //null character '\0'
     //freq[0]++;
@@ -401,38 +405,28 @@ char* decompress_bit_array(tree_node* root, char* bit_array, int str_size) {
     return str;
 }
 
-char* compress(char* str) {
+char* compress(char* str, int* compress_size) {
     if(str == NULL) {
 	return NULL;
     }
-    int str_len = (int)strlen(str);
+    char* encrypt = encryption(str);
+    int str_len = (int)strlen(encrypt);
 
     character_size = 0;
     cn_idx = 0;
-    int size = count_occurrence(str);
+    int size = count_occurrence(encrypt);
+    
     cn = malloc(sizeof(char_node) * size);
     root = huffman_codes();
-
-    for(int i = 0; i < size; i++) {
-	char_node t = cn[i];
-	//printf("%c: ", t.data);
-	for(int j = 0; j < t.size; j++) {
-	    //printf("%d", t.arr[j]);
-	}
-	//printf("\n");
-    }
-
+    
     int bit_size = 0;
-    char* bit_array = create_bit_array(str, &bit_size);
+    char* bit_array = create_bit_array(encrypt, &bit_size);
     //printf("bit array is:%s\n", bit_array);
-    printf("bit size is %d\n", bit_size);
-    printf("uncompressed size is %d\n", str_len);
-    printf("compressed about %f\n", bit_size/(double)str_len);
 
     int tree_str_size = 0;
     char* tree_str = print_tree(root, &tree_str_size);
     
-    int tree_str_len = (int) strlen(tree_str);
+    int tree_str_len = tree_str_size;
     int str_length = snprintf(NULL, 0, "%d", str_len);
     int tree_length = snprintf(NULL, 0, "%d", tree_str_len);
     int bit_length = snprintf(NULL, 0, "%d", bit_size);
@@ -449,7 +443,6 @@ char* compress(char* str) {
 	compress[i] = bit_array[i - start_length - tree_str_len];	
     }
 
-
     free(bit_array);
     free(tree_str);
     destroy_tree_node(root);
@@ -457,35 +450,44 @@ char* compress(char* str) {
 	free(cn[i].arr);
     }
     free(cn);
+    free(encrypt);
+    *compress_size = start_length + tree_str_len + bit_size;
     return compress;
 }
 
-char* decompress(char* str) {
+char* decompress(char* str, int compress_size) {
     if(str == NULL) {
 	return NULL;
     }
     
-    char dest[1000];
-    strncpy(dest, str, 1000);
+    char dest[compress_size];
+    int j;
+    for(j = 0; j < compress_size; j++) {
+	dest[j] = str[j];
+	if(str[j] == 'b') {
+	    break;
+	}
+    } 
+    dest[j+1] = '\0';
+
     char* str_l = strtok(dest, "s");
     char* rest_s = strtok(NULL, "s");
     char* tree_l = strtok(rest_s, "t");
     char* rest_t = strtok(NULL, "t");
     char* bit_l = strtok(rest_t, "b");
-    int str_len;
-    int tree_len;
-    int bit_len;
-    int n1 = sscanf(str_l, "%d", &str_len);
-    int n2 = sscanf(tree_l, "%d", &tree_len);
-    int n3 = sscanf(bit_l, "%d", &bit_len);
-    int start_length = strlen(str_l) + strlen(tree_l) + strlen(bit_l) + 3;    
- 
+    int str_len, tree_len, bit_len;
+    sscanf(str_l, "%d", &str_len);
+    sscanf(tree_l, "%d", &tree_len);
+    sscanf(bit_l, "%d", &bit_len);
+    int start_length = j+1;      
+
     char* tree_str = malloc(tree_len + 1);
     tree_str[tree_len] = '\0';
     for(int i = start_length; i < start_length + tree_len; i++) {
 	tree_str[i-start_length] = str[i];
     }
  
+
     tree_node* root = construct_tree(tree_str);
     free(tree_str);    
     
@@ -496,14 +498,24 @@ char* decompress(char* str) {
     char* decompress = decompress_bit_array(root, bit_array, str_len);
     free(bit_array);
     destroy_tree_node(root);
-
-    return decompress;
+ 
+    char* decrypt = decryption(decompress);
+    free(decompress);
+    return decrypt;
 }
 
-int main() {    
-    char* compress_str = compress("The quick brown fox jumps over a lazy dog. Funny sentence.");
-    char* decompress_str = decompress(compress_str);
+int main() {  
+    char* str = "The quick brown fox jumps over a lazy dog. Funny sentence.";
+    int str_len = (int)strlen(str);
+    int compress_size = 0;  
+    char* compress_str = compress(str, &compress_size);
+    printf("compressed size is %d\n", compress_size);
+    printf("uncompressed size is %d\n", str_len);
+    printf("compressed about %f\n", compress_size/(double)str_len);
+
+    char* decompress_str = decompress(compress_str, compress_size);
     printf("decompress str is: \"%s\"\n", decompress_str);
+    
     free(compress_str);
     free(decompress_str);
     return 0;

@@ -25,21 +25,25 @@ char* encryption(char* str) {
     size_t size = strlen(str);
     char* encrypt = malloc(size + 1);
     encrypt[size] = '\0';
-    /*
-    for(size_t i = 0; i < size; i++) {
-        int round = (size-1)/TRANSPOSE + 1;
+    
+    int tmp = (size / TRANSPOSE) * TRANSPOSE;
+    for(size_t i = 0; i < tmp; i++) {
+        int round = (tmp-1)/TRANSPOSE + 1;
         int pos = (i%TRANSPOSE)*round + (i/TRANSPOSE);
         encrypt[pos] = str[i];
     }    
-    */
+    for(int i = tmp; i < size; i++) {
+	encrypt[i] = str[i];    
+    }
+
     for(size_t i = 0; i < size; i++) {
-	int c = (int)str[i];
+	int c = (int)encrypt[i];
 	
 	int rs = 1;
 	for(size_t j = 0; j < RSA_e; j++) {
 	    rs = (rs * c) % RSA_N;
 	}
-	encrypt[i] = (char) rs;
+	encrypt[i] = (char)rs;
     }
     return encrypt;
 }
@@ -61,16 +65,19 @@ char* decryption(char* str) {
             rs = (rs * num) % RSA_N;
         }
         decrypt[i] = (char)rs;
-	//decrypt[i] = str[i];
     }
-    /*
+    
     char* decrypt2 = malloc(size + 1);
     decrypt2[size] = '\0';
-    for(size_t i = 0; i < size; i++) {
-        int round = (size-1)/TRANSPOSE + 1;
+    int tmp = (size / TRANSPOSE) * TRANSPOSE;
+    for(size_t i = 0; i < tmp; i++) {
+        int round = (tmp-1)/TRANSPOSE + 1;
         int pos = (i/round) + TRANSPOSE*(i%round);
-        decrypt2[pos] = str[i];
+        decrypt2[pos] = decrypt[i];
     }
-    free(decrypt);*/
-    return decrypt;
+    for(int i = tmp; i < size; i++) {
+        decrypt2[i] = decrypt[i];
+    }
+    free(decrypt);
+    return decrypt2;
 }
