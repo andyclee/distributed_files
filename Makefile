@@ -8,7 +8,7 @@ MOUNT_DIR = ddfs/mountdir
 
 all: master client
 
-ddfs:
+ddfs: compress
 	@mkdir -p $(ROOT_DIR)
 	@mkdir -p $(MOUNT_DIR)
 	$(COMPILER) $(COMPILE_FLAGS) $(FUSE_FLAGS) -o dffs dffs.c `pkg-config fuse --cflags --libs`
@@ -17,6 +17,9 @@ ddfs:
 	@echo 'Use flag '-d' before '-o' for debug mode'
 	@echo 'Manually unomount by: fusermount -u mountdir'
 	@echo '----------------------------------------------------'
+
+compress:
+	$(COMPILER) $(COMPILE_FLAGS) -o compress compression.c compression.h
 
 client:
 	$(COMPILER) $(COMPILE_FLAGS) -o client_app client_app.c

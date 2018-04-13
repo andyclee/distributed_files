@@ -31,6 +31,10 @@ void print_invalid_option() {
 	fprintf(stderr, "Invalid option!\n");
 }
 
+void test_fs() {
+	char* test_fp = "test_file.txt";
+}
+
 int main(int argc, char** argv) {
 	bool debug = false;
 	if (argc < 1) {
@@ -48,4 +52,6 @@ int main(int argc, char** argv) {
 	}
 
 	//Network connecting in infinite loop goes here
+	//TODO: Remove test code
+	test_fs();
 }
