@@ -10,6 +10,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+char* create_full_path(char* path) {
+	char* prepend = "dffs/mountdir/";
+	char* full_path = malloc(strlen(path) + strlen(prepend) + 1);
+	strcat(full_path, prepend);
+	strcat(full_path, path);
+	return full_path;
+}
+
 int launch_fs(bool debug) {
 	pid_t fork_stat = fork();
 	if (fork_stat == -1) {
@@ -19,7 +27,7 @@ int launch_fs(bool debug) {
 		if (debug)
 			system("./dffs -d -o auto_unmount ddfs/rootdir ddfs/mountdir");
 		else
-			system("./dffs -d -o auto_unmount ddfs/rootdir ddfs/mountdir");
+			system("./dffs -o auto_unmount ddfs/rootdir ddfs/mountdir");
 		exit(2);
 	}
 	else {
@@ -33,11 +41,20 @@ void print_invalid_option() {
 
 void test_fs() {
 	char* test_fp = "test_file.txt";
+	FILE* test_file = fopen(test_fp, "r");
+	fseek(test_file, 0, SEEK_END);
+	size_t file_size = ftell(test_file);
+	rewind(test_file);
+	char test_buff[file_size + 1];
+	fread(test_buff, 1, file_size, test_file);
+	test_buff[file_size] = '\0';
+	char* full_path = create_full_path(test_fp);
+	free(full_path);
 }
 
 int main(int argc, char** argv) {
 	bool debug = false;
-	if (argc < 1) {
+	if (argc > 1) {
 		if (!strcmp(argv[1], "debug"))
 			debug = true;
 		else {
