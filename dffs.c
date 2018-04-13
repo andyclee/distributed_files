@@ -285,7 +285,8 @@ static int df_write_slave(const char* path, size_t slave_idx, const char* buf, s
 	(void) size;
 	(void) slave_idx;
 	//Sends request to slave
-	char* comp_enc = compress((char*)buf);
+	int data_size;
+	char* comp_enc = compress((char*)buf, &data_size);
 	(void) path;
 	//int net_stat = network_send(comp_enc, path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
 	int net_stat = 0;
