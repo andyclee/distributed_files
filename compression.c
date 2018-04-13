@@ -503,20 +503,3 @@ char* decompress(char* str, int compress_size) {
     free(decompress);
     return decrypt;
 }
-
-int main() {  
-    char* str = "The quick brown fox jumps over a lazy dog. Funny sentence.";
-    int str_len = (int)strlen(str);
-    int compress_size = 0;  
-    char* compress_str = compress(str, &compress_size);
-    printf("compressed size is %d\n", compress_size);
-    printf("uncompressed size is %d\n", str_len);
-    printf("compressed about %f\n", compress_size/(double)str_len);
-
-    char* decompress_str = decompress(compress_str, compress_size);
-    printf("decompress str is: \"%s\"\n", decompress_str);
-    
-    free(compress_str);
-    free(decompress_str);
-    return 0;
-}
