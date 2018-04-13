@@ -26,11 +26,21 @@
  /**
   * Interface function of the network layer for sending string
   * Need to indicate the string to send, a filename to store as, a port and a server_name
+  * filelen is the count of chars. (No need to count in the '\0')
+  * Return: The number of bytes read (number of chars)
   **/
- int network_send (char* buffer, const char* filename, const char* server_port, const char* server_name);
+ int network_send (char* buffer, const char* filename, const char* server_port, const char* server_name, int filelen);
 
  /**
   * Interface function of the network layer for receiving string
   * Need to indicate the filename to download, a server_port and a server_name
+  * filelen is the count of chars. (No need to count in the '\0')
+  * Return: The string of content read from slaves on heap. (Needs to be clean by caller)
   **/
- char* network_receive(const char* filename, const char* server_port, const char* server_name);
+ char* network_receive(const char* filename, const char* server_port, const char* server_name, int* filelen);
+ /**
+  * Interface function of the network layer for closing slave
+  * Need to indicate the filename to download, a server_port and a server_name
+  * Return: success or failure
+  **/
+  int network_close(const char* server_port, const char* server_name);

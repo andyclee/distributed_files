@@ -4,7 +4,7 @@
 /**
  * fliename must be within 30 chars
  **/
-char* read_f(const char* filename) {
+char* read_f(const char* filename, int* flen) {
   if (strlen(filename)>30){
     return NULL;
   }
@@ -19,13 +19,14 @@ char* read_f(const char* filename) {
 
   fseek(fd,0,SEEK_END);
   size_t len = ftell(fd);
-  char* buffer = malloc(sizeof(header)+len+1);
-  memset(buffer, '\0', sizeof(header)+len+1);
+  char* buffer = malloc(len+1);
+  memset(buffer, '\0', len+1);
   fseek(fd,0,SEEK_SET);
-  fread(buffer+sizeof(header),1,len, fd);
-  buffer[sizeof(header)+len] = '\0';
+  fread(buffer,1,len, fd);
+  buffer[len] = '\0';
   fclose(fd);
 
+  *flen = len;
   return buffer;
 }
 
@@ -60,8 +61,8 @@ int receive_f(char* buffer2, const char* filename){
 int main(int argc, char **argv) {
 
   // print usage if argv is not in correct format
-  if ((strcmp(argv[1],"-upload")!=0 && strcmp(argv[1],"-download")!=0) || argc > 4){
-    printf("Usage: ./client <command name(-upload/-download)> <port> <filename>\n");
+  if ((strcmp(argv[1],"-upload")!=0 && strcmp(argv[1],"-download")!=0 && strcmp(argv[1],"-close")!=0) || argc > 4){
+    printf("Usage: ./client <command name(-upload/-download)> <port> <filename>\nor ./client -close <port> close\n");
     return 2;
   }
 
@@ -75,25 +76,32 @@ int main(int argc, char **argv) {
 	const char* server_port = argv[2];
   const char* server_name = "localhost";
 
+  if (strcmp(argv[1],"-close")==0) {
+    int retc = network_close(server_port, server_name);
+    return retc;
+  }
+
   if (flag==0) {
     // if upload
     // read the file
-    char* buffer = read_f(filename);
+    int flen;
+    char* buffer = read_f(filename, &flen);
     if (buffer == NULL) {
       printf("fail to process file %s.\n",filename);
       return -1;
     }
-    network_send(buffer, filename, server_port, server_name);
+    network_send(buffer, filename, server_port, server_name, flen);
     free(buffer);
   } else {
     // if download
-    char* buffer2 = network_receive(filename, server_port, server_name);
+    int fsize = 0;
+    char* buffer2 = network_receive(filename, server_port, server_name,&fsize);
     int stat = receive_f(buffer2, filename);
     // print result
     if (stat<0){
-      printf("fail to process file %s.\n",filename);
+      printf("fail to receive file %s.\n",filename);
     } else {
-      printf("successfully process file %s.\n",filename);
+      printf("successfully received file %s of size %d.\n", filename, fsize);
     }
   }
 
