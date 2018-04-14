@@ -29,11 +29,6 @@ typedef struct file_data {
 	size_t filesize;
 } file_data;
 
-static void df_getpath(char* fpath, const char* path) {
-	strcpy(fpath, DF_DATA->rootFile);
-	strcat(fpath, path + 1);
-}
-
 /*
  * itoa implementation I found online
  */
@@ -97,23 +92,11 @@ char* get_slave_fn(int slave_idx, char* slave_name) {
  * http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/
  */
 static int df_getattr(const char* path, struct stat* st) {
-	char realPath[PATH_MAX];
-	df_getpath(realPath, path);
+	fprintf(stderr, "getattr called on path : %s\n", path);
 
 	st->st_uid = getuid();
 	st->st_gid = getgid();
 	st->st_atime = time(NULL);
-	st->st_mtime = time(NULL);
-
-	if (strcmp(realPath, "/") == 0) {
-		st->st_mode = S_IFDIR | 0755;
-		st->st_nlink = 2;
-	}
-	else {
-		st->st_mode = S_IFREG | 0644;
-		st->st_nlink = 1;
-		st->st_size = 1024;
-	}
 
 	return 0;
 }
@@ -285,7 +268,8 @@ static int df_write_slave(const char* path, size_t slave_idx, const char* buf, s
 	(void) size;
 	(void) slave_idx;
 	//Sends request to slave
-	char* comp_enc = compress((char*)buf);
+	int data_size;
+	char* comp_enc = compress((char*)buf, &data_size);
 	(void) path;
 	//int net_stat = network_send(comp_enc, path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
 	int net_stat = 0;
