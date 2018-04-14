@@ -358,7 +358,7 @@ char* create_bit_array(char* str, int* bit_size) {
 	(*bit_size)++;
     }
 
-    char* bit_array = malloc((*bit_size));
+    char* bit_array = calloc(1, (*bit_size));
     int n = 0;
     for(int i =0; i < (int)strlen(str); i++) {
 	char_node* temp = get_char_node(str[i]);
@@ -393,7 +393,9 @@ char* decompress_bit_array(tree_node* root, char* bit_array, int str_size) {
 	    int pos = 7 - n%8;
 	    unsigned int flag = 1;
 	    flag = flag << pos;
-	    int bit = (int) ((bit_array[n_i] & flag) >> pos);
+	    char c = bit_array[n_i];
+	    int bit = 0;
+	    bit = (int) (c >> pos & 0x01);
 	    if(bit == 0) {
 		ptr = ptr->left;
 	    } else {
@@ -503,3 +505,22 @@ char* decompress(char* str, int compress_size) {
     free(decompress);
     return decrypt;
 }
+
+/*
+int main() {
+    char* str = "The quick brown fox jumps over a lazy dog. Funny sentence.";
+    int str_len = (int)strlen(str);
+    int compress_size = 0;
+    char* compress_str = compress(str, &compress_size);
+    printf("compressed size is %d\n", compress_size);
+    printf("uncompressed size is %d\n", str_len);
+    printf("compressed about %f\n", compress_size/(double)str_len);
+
+    char* decompress_str = decompress(compress_str, compress_size);
+    printf("decompress str is: \"%s\"\n", decompress_str);
+
+    free(compress_str);
+    free(decompress_str);
+    return 0;
+}
+*/
