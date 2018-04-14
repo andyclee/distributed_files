@@ -26,13 +26,13 @@ char* encryption(char* str) {
     char* encrypt = malloc(size + 1);
     encrypt[size] = '\0';
     
-    int tmp = (size / TRANSPOSE) * TRANSPOSE;
+    size_t tmp = (size / TRANSPOSE) * TRANSPOSE;
     for(size_t i = 0; i < tmp; i++) {
         int round = (tmp-1)/TRANSPOSE + 1;
         int pos = (i%TRANSPOSE)*round + (i/TRANSPOSE);
         encrypt[pos] = str[i];
     }    
-    for(int i = tmp; i < size; i++) {
+    for(size_t i = tmp; i < size; i++) {
 	encrypt[i] = str[i];    
     }
 
@@ -69,13 +69,13 @@ char* decryption(char* str) {
     
     char* decrypt2 = malloc(size + 1);
     decrypt2[size] = '\0';
-    int tmp = (size / TRANSPOSE) * TRANSPOSE;
+    size_t tmp = (size / TRANSPOSE) * TRANSPOSE;
     for(size_t i = 0; i < tmp; i++) {
         int round = (tmp-1)/TRANSPOSE + 1;
         int pos = (i/round) + TRANSPOSE*(i%round);
         decrypt2[pos] = decrypt[i];
     }
-    for(int i = tmp; i < size; i++) {
+    for(size_t i = tmp; i < size; i++) {
         decrypt2[i] = decrypt[i];
     }
     free(decrypt);
