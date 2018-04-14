@@ -20,7 +20,8 @@ ddfs: $(DFFS_DEP)
 	@echo '----------------------------------------------------'
 
 %.o: %.c
-	$(COMPILER) -c $(COMPILE_FLAGS) $*.c -o $.o
+	@echo 'Object file creation called'
+	$(COMPILER) -c $(COMPILE_FLAGS) $*.c
 	$(COMPILER) -MM $(COMPILE_FLAGS) $*.c > $*.d
 
 client:
@@ -35,3 +36,4 @@ clean:
 	@-rm -f client_app
 	@-rm -f compression.o
 	@-rm -f encryption.o
+	@-rm -f o
