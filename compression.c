@@ -196,11 +196,23 @@ char* print_tree(tree_node* root, int* size) {
 	return NULL;
     }
     if(is_leaf(root) == 1) {
-	char* result = malloc(3);
-	result[0] = '1';
-	result[1] = root->data;
+	char c = root->data;
+	char* result = calloc(1, 3);
 	result[2] = '\0';
-	*size = 2;
+	for(int i = 0; i < 9; i++) {
+	    int n_i = i / 8;
+	    int pos = 7 - i%8;
+	    int flag = 0;
+	    if(i == 0) {
+		flag = 1;
+	    } else {
+		flag = c >> (7 - (i-1)%8) & 1;
+	    }
+	    int flag2 = 1;
+	    result[n_i] = result[n_i] & ~(flag2 << pos);
+	    result[n_i] = result[n_i] | (flag << pos);
+	}
+	*size = 9;
 	return result;
     } else {
 	int left_len = 0;
@@ -208,33 +220,57 @@ char* print_tree(tree_node* root, int* size) {
 	char* left = print_tree(root->left, &left_len);
 	char* right = print_tree(root->right, &right_len);
 
-	char* result = malloc(2+left_len+right_len);
-	result[0] = '0';
-	if(left != NULL) {
-	    for(int i = 0; i < left_len; i++) {
-	    	result[1 + i] = left[i];
+	int bit_size = left_len + right_len + 1;
+	int char_size = (bit_size-1) / 8 + 1;
+	char* result = calloc(1, char_size + 1);
+	result[char_size] = '\0';
+
+	for(int i = 0; i < bit_size; i++) {
+	    int n_i = i / 8;
+	    int pos = 7 - i%8;
+	    int flag = 0;
+	    if(i == 0) {
+		flag = 0;
+	    } else if(i > 0 && i < left_len + 1) {
+		int left_n_i = (i-1) / 8;
+		int left_n_pos = 7 - (i-1)%8;
+		flag = left[left_n_i] >> left_n_pos & 1;
+	    } else {
+		int right_n_i = (i-1-left_len) / 8;
+		int right_n_pos = 7 - (i-1-left_len)%8;
+		flag = right[right_n_i] >> right_n_pos & 1;
 	    }
+	    int flag2 = 1;
+	    result[n_i] = result[n_i] & ~(flag2 << pos);
+	    result[n_i] = result[n_i] | (flag << pos);
 	}
-	if(right != NULL) {
-	    for(int i = 0; i < right_len; i++) {
-		result[1 + left_len + i] = right[i];
-	    }
-	}
-	result[1+left_len+right_len] = '\0';
+
 	free(left);
 	free(right);
-	*size = 1 + left_len + right_len;
+	*size = bit_size;
 
 	return result;
     }
 }
 
-tree_node* construct_tree(char* str) {    
-    if(str[tree_idx] == '1') {
+tree_node* construct_tree(char* str) {  
+    int n_i = tree_idx / 8;
+    int pos = 7 - tree_idx%8;
+    int flag = str[n_i] >> pos & 1;
+
+    if(flag == 1) {
 	tree_idx++;
-	char data = str[tree_idx];
-	tree_idx++;
-	return create_tree_node(data, 1);
+	char c = 'a';
+	for(int i = 0; i < 8; i++) {
+	    n_i = (tree_idx + i) / 8;
+	    pos = 7 - (tree_idx + i)%8;
+	    int char_bit = str[n_i] >> pos & 1;
+	    int flag2 = 1;
+	    c = c & ~(flag2 << (7-i));
+	    c = c | (char_bit << (7-i));
+	}
+	tree_idx = tree_idx + 8;
+	return create_tree_node(c, 1);
     } else {
 	tree_idx++;
 	tree_node* left = construct_tree(str);
@@ -368,7 +404,10 @@ char* create_bit_array(char* str, int* bit_size) {
 	    int n_i = n/8;
 	    int pos = 7 - n%8;
 	    unsigned int flag = arr[j];
+	    unsigned int flag2 = 1;
 	    flag = flag << pos;
+	    flag2 = ~(flag2 << pos);
+	    bit_array[n_i] = bit_array[n_i] & flag2;
 	    bit_array[n_i] = bit_array[n_i] | flag;
 	    n++;
 	}
@@ -413,7 +452,7 @@ char* compress(char* str, int* compress_size) {
     }
     char* encrypt = encryption(str);
     int str_len = (int)strlen(encrypt);
-
+    
     character_size = 0;
     cn_idx = 0;
     int size = count_occurrence(encrypt);
@@ -426,9 +465,9 @@ char* compress(char* str, int* compress_size) {
     //printf("bit array is:%s\n", bit_array);
 
     int tree_str_size = 0;
-    char* tree_str = print_tree(root, &tree_str_size);
-    
-    int tree_str_len = tree_str_size;
+    char* tree_str = print_tree(root, &tree_str_size);    
+
+    int tree_str_len = (tree_str_size-1) / 8 + 1;
     int str_length = snprintf(NULL, 0, "%d", str_len);
     int tree_length = snprintf(NULL, 0, "%d", tree_str_len);
     int bit_length = snprintf(NULL, 0, "%d", bit_size);
@@ -506,9 +545,9 @@ char* decompress(char* str, int compress_size) {
     return decrypt;
 }
 
-/*
+
 int main() {
-    char* str = "The quick brown fox jumps over a lazy dog. Funny sentence.";
+    char* str = "Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, 'and what is the use of a book,' thought Alice 'without pictures or conversation?'\n\nSo she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.\n\nThere was nothing so VERY remarkable in that; nor did Alice think it so VERY much out of the way to hear the Rabbit say to itself, 'Oh dear! Oh dear! I shall be late!' (when she thought it over afterwards, it occurred to her that she ought to have wondered at this, but at the time it all seemed quite natural); but when the Rabbit actually TOOK A WATCH OUT OF ITS WAISTCOAT-POCKET, and looked at it, and then hurried on, Alice started to her feet, for it flashed across her mind that she had never before seen a rabbit with either a waistcoat-pocket, or a watch to take out of it, and burning with curiosity, she ran across the field after it, and fortunately was just in time to see it pop down a large rabbit-hole under the hedge.\n\nIn another moment down went Alice after it, never once considering how in the world she was to get out again.\n\nThe rabbit-hole went straight on like a tunnel for some way, and then dipped suddenly down, so suddenly that Alice had not a moment to think about stopping herself before she found herself falling down a very deep well.\n\nEither the well was very deep, or she fell very slowly, for she had plenty of time as she went down to look about her and to wonder what was going to happen next. First, she tried to look down and make out what she was coming to, but it was too dark to see anything; then she looked at the sides of the well, and noticed that they were filled with cupboards and book-shelves; here and there she saw maps and pictures hung upon pegs. She took down a jar from one of the shelves as she passed; it was labelled 'ORANGE MARMALADE', but to her great disappointment it was empty: she did not like to drop the jar for fear of killing somebody, so managed to put it into one of the cupboards as she fell past it.";
     int str_len = (int)strlen(str);
     int compress_size = 0;
     char* compress_str = compress(str, &compress_size);
@@ -517,10 +556,16 @@ int main() {
     printf("compressed about %f\n", compress_size/(double)str_len);
 
     char* decompress_str = decompress(compress_str, compress_size);
-    printf("decompress str is: \"%s\"\n", decompress_str);
+    printf("decompress str is:\n\"%s\"\n", decompress_str);
+
+    if(strcmp(str, decompress_str) == 0) {
+	printf("---Same string---\n");
+    } else {
+	printf("---Different string---\n");
+    }
 
     free(compress_str);
     free(decompress_str);
     return 0;
 }
-*/
+
