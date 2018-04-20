@@ -24,8 +24,11 @@ ddfs: $(DFFS_DEP)
 	$(COMPILER) -c $(COMPILE_FLAGS) $*.c
 	$(COMPILER) -MM $(COMPILE_FLAGS) $*.c > $*.d
 
-client:
-	$(COMPILER) $(COMPILE_FLAGS) -o client_app client_app.c
+client: network_client
+	$(COMPILER) $(COMPILE_FLAGS) client.o -o client_app client_app.c
+
+network_client:
+	$(COMPILER) -c $(COMPILE_FLAGS) client.c
 
 master: ddfs
 	$(COMPILER) $(COMPILE_FLAGS) -o master_app master_app.c
@@ -36,4 +39,7 @@ clean:
 	@-rm -f client_app
 	@-rm -f compression.o
 	@-rm -f encryption.o
+	@-rm -f client.o
 	@-rm -f o
+	@-rm -f compression.d
+	@-rm -f encryption.d
