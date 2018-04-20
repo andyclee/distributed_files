@@ -9,11 +9,14 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 char* create_full_path(char* path) {
-	char* prepend = "dffs/mountdir/";
+	char* prepend = "./ddfs/mountdir/";
 	char* full_path = malloc(strlen(path) + strlen(prepend) + 1);
-	strcat(full_path, prepend);
+	strcpy(full_path, prepend);
 	strcat(full_path, path);
 	return full_path;
 }
@@ -31,7 +34,7 @@ int launch_fs(bool debug) {
 		exit(2);
 	}
 	else {
-		return waitpid(fork_stat, NULL, 0);
+		return fork_stat;
 	}
 }
 
@@ -47,8 +50,19 @@ void test_fs() {
 	rewind(test_file);
 	char test_buff[file_size + 1];
 	fread(test_buff, 1, file_size, test_file);
+
 	test_buff[file_size] = '\0';
 	char* full_path = create_full_path(test_fp);
+
+	fprintf(stderr, "Opening file\n");
+	int write_file = open(full_path, O_WRONLY | O_CREAT);
+	if (write_file == -1) {
+		fprintf(stderr, "errno: %d\n", errno);
+		return;
+	}
+	fprintf(stderr, "Writing to file\n");
+	size_t bytes_written = write(write_file, test_buff, file_size);
+	fprintf(stderr, "Wrote %zu bytes\n", bytes_written);
 	free(full_path);
 }
 
@@ -69,6 +83,10 @@ int main(int argc, char** argv) {
 	}
 
 	//Network connecting in infinite loop goes here
-	//TODO: Remove test code
-	test_fs();
+	if (debug) {
+		sleep(1);
+		test_fs();
+	}
+
+	return 0;
 }

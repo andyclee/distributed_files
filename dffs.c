@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <errno.h>
 #include "compression.h"
 
 #define SLAVE_COUNT 3
@@ -78,7 +79,7 @@ size_t get_slave_size(char* slave_info) {
 }
 
 char* get_slave_fn(int slave_idx, char* slave_name) {
-		strcpy(slave_name, "dffs/slave");
+		strcpy(slave_name, "ddfs/slave");
 		char slave_num[5];
 		itoa(slave_idx, slave_num, 10);
 		strcat(slave_name, slave_num);
@@ -97,6 +98,15 @@ static int df_getattr(const char* path, struct stat* st) {
 	st->st_uid = getuid();
 	st->st_gid = getgid();
 	st->st_atime = time(NULL);
+	if (strcmp(path, "/") == 0) {
+		st->st_mode = S_IFDIR;
+		st->st_nlink = 2;
+	}
+	else {
+		st->st_mode = S_IFREG;
+		st->st_nlink = 1;
+		st->st_size = 1;
+	}
 
 	return 0;
 }
@@ -132,18 +142,29 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 
 int slave_contains(const char* slave, const char* target_file) {
 	FILE* slave_file = fopen(slave, "r");
+	if (slave_file == NULL) {
+		fprintf(stderr, "Slave at %s not found\n", slave);
+		return -1;
+	}
 	char fi_buff[1024];
-	while (fgets(fi_buff, 1024, slave_file) == NULL) {
+	while (fgets(fi_buff, 1024, slave_file) != NULL) {
 		if (!strcmp(fi_buff, "\n")) {
 			continue;
 		}
 		file_data* cur_fi = get_file_data(fi_buff);
 		if (strcmp(cur_fi->filename, target_file) == 0) {
+			fprintf(stderr, "cur_fi: %s\ntarget: %s\n", cur_fi->filename, target_file);
 			return cur_fi->filesize;
 		}
 		destroy_file_data(cur_fi);
 	}
 	return -1;
+}
+
+static int df_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
+	(void) fi;
+	fprintf(stderr, "Create was called on path %s with mode %d\n", path, mode);
+	return 0;
 }
 
 /*
@@ -161,7 +182,7 @@ static int df_open(const char* path, struct fuse_file_info* fi) {
 	}
 
 	fprintf(stderr, "File not found!\n");
-	return 1;
+	return 0;
 }
 
 int find_file_on_server(char* path) {
@@ -175,19 +196,22 @@ int find_file_on_server(char* path) {
 		}
 	}
 
+	fprintf(stderr, "Returning slave_idx: %d\n", slave_idx);
 	return slave_idx;
 }
 /*
  * This method is so dumb but it works
  */
 int update_slave_metadata(char* target_file, int file_size, int slave_idx) {
+	fprintf(stderr, "Updating slave metadata for %s to size %d on slave %d\n",
+			target_file, file_size, slave_idx);
 	char slave_fn[128];
 	get_slave_fn(slave_idx, slave_fn);
 	FILE* slave_file = fopen(slave_fn, "r+");
 	if (slave_file == NULL) {
 		return -1;
 	}
-	FILE* new_slave = fopen("new_file.csv", "w+");
+	FILE* new_slave = fopen("ddfs/new_file.csv", "w+");
 	char new_metadata [1024];
 	sprintf(new_metadata, "%s,%d", target_file, file_size);
 	fwrite(new_metadata, 1, strlen(new_metadata) + 1, new_slave);
@@ -206,11 +230,12 @@ int update_slave_metadata(char* target_file, int file_size, int slave_idx) {
 		destroy_file_data(cur_fi);
 	}
 	remove(slave_fn);
-	rename("new_file.csv", slave_fn);
+	rename("ddfs/new_file.csv", slave_fn);
 	return 0;
 }
 
 int add_slave_metadata(char* target_file, int file_size, int slave_idx) {
+	fprintf(stderr, "Adding file %s of size %d to slave %d\n", target_file, file_size, slave_idx);
 	char slave_fn[128];
 	get_slave_fn(slave_idx, slave_fn);
 	FILE* slave_file = fopen(slave_fn, "a");
@@ -224,8 +249,8 @@ int add_slave_metadata(char* target_file, int file_size, int slave_idx) {
 }
 
 int update_all_metadata(int slave_idx, int del_size) {
-	FILE* all_md = fopen("all_servers.csv", "r");
-	FILE* temp_md = fopen("temp_md.csv", "w+");
+	FILE* all_md = fopen("ddfs/all_servers.csv", "r");
+	FILE* temp_md = fopen("ddfs/temp_md.csv", "w+");
 	char fi_buff[128];
 	for (int i = 0; i < SLAVE_COUNT; i++) {
 		fgets(fi_buff, 128, all_md);
@@ -240,8 +265,8 @@ int update_all_metadata(int slave_idx, int del_size) {
 			fwrite(fi_buff, 1, strlen(fi_buff) + 1, temp_md);
 		}
 	}
-	remove("all_servers.csv");
-	rename("temp_md.csv", "all_servers.csv");
+	remove("ddfs/all_servers.csv");
+	rename("ddfs/temp_md.csv", "ddfs/all_servers.csv");
 	return 0;
 }
 
@@ -260,6 +285,7 @@ static int df_read(const char* path, char* buf, size_t size,
 	}
 
 	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
+	//TODO: ADD NETWORK READ CODE HERE
 	//char* received_data = network_receive(path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
 	return 0;
 }
@@ -271,6 +297,7 @@ static int df_write_slave(const char* path, size_t slave_idx, const char* buf, s
 	int data_size;
 	char* comp_enc = compress((char*)buf, &data_size);
 	(void) path;
+	//TODO: ADD SEND NETWORK CODE HERE
 	//int net_stat = network_send(comp_enc, path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
 	int net_stat = 0;
 	free(comp_enc);
@@ -283,7 +310,7 @@ static int df_write(const char* path, const char* buf, size_t size,
 	(void) fi;
 
 	fprintf(stderr, "Attempting to write: %s\n", path);
-	FILE* server_file = fopen("all_servers.csv", "r");
+	FILE* server_file = fopen("ddfs/all_servers.csv", "r");
 	if (!server_file) {
 		fprintf(stderr, "All server metadata not found!\n");
 		return 1;
@@ -291,6 +318,7 @@ static int df_write(const char* path, const char* buf, size_t size,
 
 	int slave_idx = -1;
 	int find_slave_idx = find_file_on_server((char*)path);
+	fprintf(stderr, "fsi returned %d\n", find_slave_idx);
 	if (find_slave_idx != -1) {
 		slave_idx = find_slave_idx;
 		update_slave_metadata((char*)path, size, slave_idx);
@@ -309,6 +337,8 @@ static int df_write(const char* path, const char* buf, size_t size,
 			cur_slave++;
 		}
 		slave_idx = min_slave;
+		add_slave_metadata((char*)path, size, slave_idx);
+		update_all_metadata(slave_idx, -min_size);
 	}
 
 	return df_write_slave(path, slave_idx, buf, size);
@@ -322,8 +352,14 @@ static void* df_init(struct fuse_conn_info* conn) {
 	(void) conn;
 	FILE* as_ptr = fopen("ddfs/all_servers.csv", "r");
 	if (as_ptr == NULL) {
+		fprintf(stderr, "Creating all_servers file\n");
 		as_ptr = fopen("ddfs/all_servers.csv", "w+");
-		fwrite("0\n", 3, SLAVE_COUNT, as_ptr);
+		char md_buff[3 * SLAVE_COUNT];
+		md_buff[0] = '\0';
+		for (int i = 0; i < SLAVE_COUNT; i++) {
+			strcat(md_buff, "0\n");
+		}
+		fwrite(md_buff, 3, SLAVE_COUNT, as_ptr);
 	}
 	for (int f = 0; f < SLAVE_COUNT; f++) {
 		char slave_name[128];
@@ -339,6 +375,7 @@ static struct fuse_operations df_oper = {
 	.getattr	= df_getattr,
 	.readdir	= df_readdir,
 	.open		= df_open,
+	.create		= df_create,
 	.read		= df_read,
 	.write		= df_write,
 	.init		= df_init,
