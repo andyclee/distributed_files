@@ -274,7 +274,6 @@ int update_all_metadata(int slave_idx, int del_size) {
 static int df_read(const char* path, char* buf, size_t size, 
 		off_t offset, struct fuse_file_info* fi) {
 	fprintf(stderr, "Attempting to read: %s\n", path);
-	(void) buf;
 	(void) size;
 	(void) offset;
 	(void) fi;
@@ -288,6 +287,7 @@ static int df_read(const char* path, char* buf, size_t size,
 	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
 	int file_len;
 	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
+	memcpy(buf, received_data, file_len);
 	return 0;
 }
 
@@ -388,6 +388,10 @@ void set_slave_locations() {
 int main(int argc, char* argv[]) {
 	//This data is malloc'd but will be used for the lifetime of the filesystem
 	df_data* dfd = malloc(sizeof(df_data));
+
+	dfd->slave_loc[0] = "localhost";
+	dfd->slave_loc[1] = "localhost";
+	dfd->slave_loc[2] = "localhost";
 
 	argv[argc - 2] = argv[argc - 1];
 	argv[argc - 1] = NULL;

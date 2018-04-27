@@ -28,7 +28,7 @@ int send_s(int sock, char* buffer, const char* filename, int filelen) {
   int bytes_sent = send(sock, data_to_send, sizeof(header), 0);
   bytes_sent = send(sock, data_to_send+sizeof(header), x.filesize, 0);
 
-  if (bytes_sent != x.filesize) {
+  if ((size_t)bytes_sent != x.filesize) {
     // in case sent fails
     perror("send bytes fail");
   }
@@ -78,7 +78,7 @@ char* receive_s(int sock, const char* filename, int* filelen){
 
     char* buffer2 = malloc(r.filesize+1);
     len = 0;
-    while (len < r.filesize){
+    while ((size_t)len < r.filesize){
       len += read(sock, buffer2+len, r.filesize);
     }
     buffer2[r.filesize] = '\0';

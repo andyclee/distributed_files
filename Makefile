@@ -3,7 +3,7 @@ FUSE_FLAGS = -D_FILE_OFFSET_BITS=64
 COMPILE_FLAGS = -Wall -Wextra
 ROOT_DIR = ddfs/rootdir
 MOUNT_DIR = ddfs/mountdir
-DFFS_DEP = compression.o encryption.o
+DFFS_DEP = compression.o encryption.o client.o
 
 .PHONY: ddfs
 
