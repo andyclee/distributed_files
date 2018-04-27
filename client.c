@@ -1,11 +1,66 @@
 #include "client.h"
 
+ssize_t write_to_socket(int socket, const char* buffer, size_t count){
+  ssize_t ret = 0;
+  while (ret < (ssize_t)count) {
+      ssize_t len = write(socket, buffer+ret, count - ret);
+      if (len == 0) {
+        /*if (ret == (ssize_t)count){
+          return ret;
+        } else {
+          return -1;
+        }*/
+        break;
+      } else if (len==-1 && errno == EINTR) {
+        errno = 0;
+        continue;
+      } else if (len==-1 && errno!=EINTR) {
+        return -1;
+      }
+      ret += len;
+  }
+  //if (ret == (ssize_t)count){
+  return ret;
+  //}else {
+    //return -1;
+  //}
+}
+
+ssize_t read_from_socket(int socket, char* buffer, size_t count){
+    ssize_t ret = 0;
+
+    while (ret < (ssize_t)count) {
+      ssize_t len = read(socket, buffer + ret, count-ret);
+      if (len == 0) {
+        /*if (ret == (ssize_t)count){
+          return ret;
+        } else {
+          return -1;
+        }*/
+        break;
+      } else if (len == -1 && errno == EINTR) {
+        errno = 0;
+        continue;
+      } else if (len == -1 && errno != EINTR) {
+        // other error 
+        return -1;
+      }
+      ret += len;
+    }
+
+   // if (ret == (ssize_t)count){
+          return ret;
+    //} else {
+      //    return -1;
+    //}
+
+}
 
 
 /**
  * Send a string
 **/
-int send_s(int sock, char* buffer, const char* filename, int filelen) {
+ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 
   char* temp = malloc(sizeof(header)+filelen+1);
   memset(temp, '\0', sizeof(header)+filelen+1);
@@ -25,12 +80,17 @@ int send_s(int sock, char* buffer, const char* filename, int filelen) {
 
   // data that will be sent to the server
   const char* data_to_send = mesg;
-  int bytes_sent = send(sock, data_to_send, sizeof(header), 0);
-  bytes_sent = send(sock, data_to_send+sizeof(header), x.filesize, 0);
+  ssize_t retw =  write_to_socket(sock, data_to_send, sizeof(header));
+  ssize_t retw2 = write_to_socket(sock, data_to_send+sizeof(header), x.filesize);
 
+<<<<<<< HEAD
+  if (retw<0 || retw2<0) {
+=======
   if ((size_t)bytes_sent != x.filesize) {
+>>>>>>> 06454f8eab4b0168202e98f57b2c94d75bbdefaa
     // in case sent fails
     perror("send bytes fail");
+    return -1;
   }
 
   free(temp);
@@ -42,7 +102,7 @@ int send_s(int sock, char* buffer, const char* filename, int filelen) {
  * Receive a string
 **/
 
-char* receive_s(int sock, const char* filename, int* filelen){
+char* receive_s(int sock, const char* filename, size_t* filelen){
 
     char buffer[sizeof(header)];
     header x;
@@ -56,17 +116,21 @@ char* receive_s(int sock, const char* filename, int* filelen){
     // send
     // send the header
     const char* data_to_send = (const char*)buffer;
-    int head_size = send(sock, data_to_send, sizeof(header), 0);
+    ssize_t head_size = write_to_socket(sock, data_to_send, sizeof(header));
 
-    if (head_size!=sizeof(header)){
+    if (head_size < 0){
           perror("sent wrong\n");
+          return NULL;
     }
 
     // receive
     //receive the string that contain the file
 
     char head [sizeof(header)];
-    int len = read(sock, head, sizeof(header));
+    ssize_t len = read_from_socket(sock, head, sizeof(header));
+    if (len < 0) {
+      return NULL;
+    }
 
     header r;
     r = *(header*)head;
@@ -77,12 +141,18 @@ char* receive_s(int sock, const char* filename, int* filelen){
     }
 
     char* buffer2 = malloc(r.filesize+1);
+<<<<<<< HEAD
+    len = read_from_socket(sock, buffer2, r.filesize); 
+    if (len <0){
+      return NULL;
+=======
     len = 0;
     while ((size_t)len < r.filesize){
       len += read(sock, buffer2+len, r.filesize);
+>>>>>>> 06454f8eab4b0168202e98f57b2c94d75bbdefaa
     }
     buffer2[r.filesize] = '\0';
-    *filelen = len;
+    *filelen = r.filesize;
 
     return buffer2;
 }
@@ -93,7 +163,7 @@ char* receive_s(int sock, const char* filename, int* filelen){
  * Interface function of the network layer for sending string
  * Need to indicate the string to send, a filename to store as, a port and a server_name
  **/
-int network_send (char* buffer, const char* filename, const char* server_port, const char* server_name, int filelen) {
+ssize_t network_send (char* buffer, const char* filename, const char* server_port, const char* server_name, size_t filelen) {
   // connection
   int s;
   int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -116,27 +186,31 @@ int network_send (char* buffer, const char* filename, const char* server_port, c
     exit(1);
   }
 
-  int stat=-1;
+  ssize_t stat= -1;
   stat = send_s(sock, buffer, filename, filelen);
 
   // print result
-  if (stat<0){
-    printf("fail to process file %s.\n",filename);
-  } else {
-    printf("successfully process file %s.\n",filename);
+  if (stat > 0) {
+    // check the status from server
+    char statBuf[6];
+    memset(statBuf, '\0', 6);
+    read(sock, statBuf, 6);
+    if (strncmp(statBuf,"ERROR",5)==0) {
+      stat = -1;
+    }
   }
 
   // close the socket
   close(sock);
   freeaddrinfo(result);
-	return stat;
+  return stat;
 }
 
 /**
  * Interface function of the network layer for receiving string
  * Need to indicate the filename to download, a server_port and a server_name
  **/
-char* network_receive(const char* filename, const char* server_port, const char* server_name, int* filelen){
+char* network_receive(const char* filename, const char* server_port, const char* server_name, size_t* filelen){
   // connection
   int s;
   int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -159,7 +233,7 @@ char* network_receive(const char* filename, const char* server_port, const char*
     exit(1);
   }
 
-  printf("before receive_s\n");
+  //printf("before receive_s\n");
 
   char* buffer = receive_s(sock, filename,filelen);
 
