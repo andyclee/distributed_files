@@ -13,7 +13,7 @@
  #include <stdint.h>
  #include <sys/types.h>
  #include <netdb.h>
-
+ #include <errno.h>
  typedef struct header_t{
    // u for upload, d for download
    char cmd;

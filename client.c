@@ -5,11 +5,6 @@ ssize_t write_to_socket(int socket, const char* buffer, size_t count){
   while (ret < (ssize_t)count) {
       ssize_t len = write(socket, buffer+ret, count - ret);
       if (len == 0) {
-        /*if (ret == (ssize_t)count){
-          return ret;
-        } else {
-          return -1;
-        }*/
         break;
       } else if (len==-1 && errno == EINTR) {
         errno = 0;
@@ -19,11 +14,7 @@ ssize_t write_to_socket(int socket, const char* buffer, size_t count){
       }
       ret += len;
   }
-  //if (ret == (ssize_t)count){
   return ret;
-  //}else {
-    //return -1;
-  //}
 }
 
 ssize_t read_from_socket(int socket, char* buffer, size_t count){
@@ -32,11 +23,6 @@ ssize_t read_from_socket(int socket, char* buffer, size_t count){
     while (ret < (ssize_t)count) {
       ssize_t len = read(socket, buffer + ret, count-ret);
       if (len == 0) {
-        /*if (ret == (ssize_t)count){
-          return ret;
-        } else {
-          return -1;
-        }*/
         break;
       } else if (len == -1 && errno == EINTR) {
         errno = 0;
@@ -48,12 +34,7 @@ ssize_t read_from_socket(int socket, char* buffer, size_t count){
       ret += len;
     }
 
-   // if (ret == (ssize_t)count){
-          return ret;
-    //} else {
-      //    return -1;
-    //}
-
+    return ret;
 }
 
 
@@ -83,14 +64,19 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
   ssize_t retw =  write_to_socket(sock, data_to_send, sizeof(header));
   ssize_t retw2 = write_to_socket(sock, data_to_send+sizeof(header), x.filesize);
 
-<<<<<<< HEAD
   if (retw<0 || retw2<0) {
-=======
-  if ((size_t)bytes_sent != x.filesize) {
->>>>>>> 06454f8eab4b0168202e98f57b2c94d75bbdefaa
-    // in case sent fails
-    perror("send bytes fail");
+    free(temp);
     return -1;
+  }
+
+  char statBuf[6];
+  memset(statBuf, '\0',6);  
+  int retr = read(sock,statBuf,6);
+  if (retr>0){
+    if (strncmp(statBuf, "ERROR",5)==0){
+      free(temp);
+      return -1;
+    }
   }
 
   free(temp);
@@ -119,7 +105,7 @@ char* receive_s(int sock, const char* filename, size_t* filelen){
     ssize_t head_size = write_to_socket(sock, data_to_send, sizeof(header));
 
     if (head_size < 0){
-          perror("sent wrong\n");
+        //  perror("sent wrong\n");
           return NULL;
     }
 
@@ -135,22 +121,18 @@ char* receive_s(int sock, const char* filename, size_t* filelen){
     header r;
     r = *(header*)head;
     if (r.cmd!='d'){
-      printf("%c,%d\n",r.cmd,len);
-      perror("1\n");
+      //printf("%c,%d\n",r.cmd,len);
+      //perror("1\n");
       return NULL;
     }
 
     char* buffer2 = malloc(r.filesize+1);
-<<<<<<< HEAD
     len = read_from_socket(sock, buffer2, r.filesize); 
     if (len <0){
+      free(buffer2);
       return NULL;
-=======
-    len = 0;
-    while ((size_t)len < r.filesize){
-      len += read(sock, buffer2+len, r.filesize);
->>>>>>> 06454f8eab4b0168202e98f57b2c94d75bbdefaa
     }
+
     buffer2[r.filesize] = '\0';
     *filelen = r.filesize;
 
