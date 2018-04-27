@@ -8,6 +8,6 @@ DEPENDENCIES:
 
 USAGE:
 
-* client_app is run from the client machine, can push, pull, and list files
+* client_app is run from the client machine, can upload, download, and list files
 * master_app is run on the master server, can run in debug mode with the 'debug' flag
 * slave_app is run on the various slave servers, waits on master requests
