@@ -88,5 +88,8 @@ int main(int argc, char** argv) {
 		test_fs();
 	}
 
+	//TODO: ACCEPT CLIENTS
+	
+
 	return 0;
 }

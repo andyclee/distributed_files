@@ -14,6 +14,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include "compression.h"
+#include "client.h"
 
 #define SLAVE_COUNT 3
 #define BUFFER_SIZE 16
@@ -285,8 +286,8 @@ static int df_read(const char* path, char* buf, size_t size,
 	}
 
 	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
-	//TODO: ADD NETWORK READ CODE HERE
-	//char* received_data = network_receive(path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
+	int file_len;
+	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
 	return 0;
 }
 
@@ -296,10 +297,7 @@ static int df_write_slave(const char* path, size_t slave_idx, const char* buf, s
 	//Sends request to slave
 	int data_size;
 	char* comp_enc = compress((char*)buf, &data_size);
-	(void) path;
-	//TODO: ADD SEND NETWORK CODE HERE
-	//int net_stat = network_send(comp_enc, path, DF_DATA->slave_loc[slave_idx], SERVER_PORT);
-	int net_stat = 0;
+	int net_stat = network_send(comp_enc, path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], data_size);
 	free(comp_enc);
 	return net_stat;
 }
