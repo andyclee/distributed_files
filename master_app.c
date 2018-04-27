@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include "client.h"
 
 char* create_full_path(char* path) {
 	char* prepend = "./ddfs/mountdir/";
@@ -66,7 +67,17 @@ void test_fs() {
 	free(full_path);
 }
 
-int run_master() {
+void shutdown_server(int sock){
+  shutdown(sock, SHUT_RDWR);
+  close(sock);
+}
+
+void send_error(int client_fd){
+  write_to_socket(client_fd, "ERROR", 5);
+}
+
+int run_master (const char* port) {
+  // start a server
   int s;
   int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
   int reuse = 1;
@@ -101,6 +112,7 @@ int run_master() {
 
   int endSession = 0;
   while(endSession == 0){
+
     printf("Waiting for connection...\n");
     int client_fd = accept(sock_fd, NULL, NULL);
     printf("Connection made: client_fd=%d\n", client_fd);
@@ -110,48 +122,30 @@ int run_master() {
     header x;
     x = *(header*)head;
 
-    //if cmd is c, close Connection
-    if (x.cmd=='c') {
-      endSession = 1;
-      break;
-    }
-
-    int flag = 0; //0 for upload, 1 for download
+    // if anything went wrong use send_error(int client_fd) function
+    // shutdown connection with client after done
     if (x.cmd=='u') {
-      flag = 0;
+      // client requires upload
+   
+      
     } else if (x.cmd=='d') {
-      flag = 1;
-    } else {
+      // client requires download
+
+      
+    } else if (x.cmd == 'l'){
+      // client requires list
+
+
+    } else{
+      // unknown command
+      
       printf("This is the command: %c\n",x.cmd);
       printf("Command not recognizable.\n");
-      return 2;
     }
 
-    int stat = 0;
-    if (flag==0) {
-      char buffer[x.filesize+1];
-      if (x.filesize>130000){
-        int len = 0;
-        while (len<x.filesize){
-          len += read(client_fd, buffer+len, 130000);
-        }
-      }else{
-        int len = read(client_fd, buffer, x.filesize);
-      }
-
-      buffer[x.filesize] = '\0';
-      stat=upload_f(x.filename, buffer);
-    }else if (flag == 1){
-      stat=download_f(client_fd, x.filename);
-    }
-
-
-
-    if (stat==0){
-      printf("successful command on file %s\n",x.filename);
-    }else {
-      printf("Unable to process file %s\n",x.filename);
-    }
+    // need to handle signal interrupt
+ 
+    // need to close up slaves and shutdown this server
 
 }
 
@@ -178,7 +172,8 @@ int main(int argc, char** argv) {
 	}
 
 	//TODO: ACCEPT CLIENTS
-	
+        const char* port = 
+	run_master();
 
 	return 0;
 }
