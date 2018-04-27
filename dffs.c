@@ -128,6 +128,9 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 		return 1;
 	}
 
+	size_t list_size = 0;
+	char* list_buff = malloc(1);
+	list_buff[0] = '\0';
 	char fi_buff[1024];
 	while (fgets(fi_buff, 1024, server_file) != NULL) {
 		if (!strcmp(fi_buff, "\n")) {
@@ -135,8 +138,18 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 		}
 		file_data* cur_fi = get_file_data(fi_buff);
 		filler(buf, cur_fi->filename, NULL, 0);
+		size_t old_size = list_size;
+		list_size = list_size + strlen(cur_fi->filename) + 2;
+		list_buff = realloc(list_buff, list_size);
+		if (old_size == 0)
+			strcpy(list_buff, cur_fi->filename);
+		else
+			strcat(list_buff, cur_fi->filename);
+		strcat(list_buff, "\n");
 		destroy_file_data(cur_fi);
 	}
+	
+	//TODO: Add network LIST call
 
 	return 0;
 }
