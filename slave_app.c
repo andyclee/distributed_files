@@ -23,6 +23,9 @@ int server_main(const char* port);
 
 int main(int argc, char **argv)
 {
+  if (argc<2) {
+    printf("USAGE: ./slave <port>");
+  }
   const char* port = argv[1];
   server_main(port);
   return 0;
@@ -76,7 +79,7 @@ int download_f (int sock, const char* filename) {
   // data that will be sent to the server
   const char* data_to_send = mesg;
   int sentlen = send(sock, data_to_send, sizeof(header)+ x.filesize, 0);
-  if (sentlen!=sizeof(header)+ x.filesize){
+  if (sentlen!=(int)(sizeof(header)+ x.filesize)){
     perror("Sent not successful\n");
     return -1;
   }
@@ -121,7 +124,7 @@ int server_main(const char* port) {
     printf("Connection made: client_fd=%d\n", client_fd);
 
     char head[sizeof(header)];
-    int len = read(client_fd, head, sizeof(header));
+    read(client_fd, head, sizeof(header));
     header x;
     x = *(header*)head;
 
@@ -147,11 +150,11 @@ int server_main(const char* port) {
       char buffer[x.filesize+1];
       if (x.filesize>130000){
         int len = 0;
-        while (len<x.filesize){
+        while (len<(int)x.filesize){
           len += read(client_fd, buffer+len, 130000);
         }
       }else{
-        int len = read(client_fd, buffer, x.filesize);
+        read(client_fd, buffer, x.filesize);
       }
 
       buffer[x.filesize] = '\0';
