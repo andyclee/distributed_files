@@ -3,6 +3,9 @@ client_app
 dffs
 master_app
 
+#Misc
+*.swp
+
 # Prerequisites
 *.d
 
