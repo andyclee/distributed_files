@@ -170,7 +170,7 @@ ssize_t network_send (char* buffer, const char* filename, const char* server_por
   stat = send_s(sock, buffer, filename, filelen);
 
   // print result
-  if (stat > 0) {
+/*  if (stat > 0) {
     // check the status from server
     char statBuf[6];
     memset(statBuf, '\0', 6);
@@ -178,7 +178,7 @@ ssize_t network_send (char* buffer, const char* filename, const char* server_por
     if (strncmp(statBuf,"ERROR",5)==0) {
       stat = -1;
     }
-  }
+  }*/
 
   // close the socket
   close(sock);
