@@ -7,7 +7,7 @@ DFFS_DEP = compression.o encryption.o client.o
 
 .PHONY: ddfs
 
-all: master client
+all: master client slave
 
 ddfs: $(DFFS_DEP)
 	@mkdir -p $(ROOT_DIR)
@@ -33,10 +33,14 @@ network_client:
 master: ddfs network_client
 	$(COMPILER) $(COMPILE_FLAGS) client.o -o master_app master_app.c
 
+slave:
+	$(COMPILER) $(COMPILE_FLAGS) -o slave_app slave_app.c
+
 clean:
 	@-rm -f dffs
 	@-rm -f master_app
 	@-rm -f client_app
+	@-rm -f slave_app
 	@-rm -f compression.o
 	@-rm -f encryption.o
 	@-rm -f client.o
