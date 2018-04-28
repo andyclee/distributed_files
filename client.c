@@ -45,7 +45,7 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 
   char* temp = malloc(sizeof(header)+filelen+1);
   memset(temp, '\0', sizeof(header)+filelen+1);
-  strncpy(temp+sizeof(header), buffer, filelen+1);
+  strncpy(temp+sizeof(header), buffer, filelen);
 
   //set header!
   header x;
@@ -126,14 +126,12 @@ char* receive_s(int sock, const char* filename, size_t* filelen){
       return NULL;
     }
 
-    char* buffer2 = malloc(r.filesize+1);
+    char* buffer2 = malloc(r.filesize);
     len = read_from_socket(sock, buffer2, r.filesize); 
     if (len <0){
       free(buffer2);
       return NULL;
     }
-
-    buffer2[r.filesize] = '\0';
     *filelen = r.filesize;
 
     return buffer2;
@@ -273,5 +271,79 @@ int network_close(const char* server_port, const char* server_name){
   close(sock);
   freeaddrinfo(result);
   free(bufferc);
+  return 0;
+}
+
+/**
+ * Send from client to master to request a list of filenames. 
+ * Need to provide a port and a server name, and a preallocated buffer
+ * Stored the list content in buffer
+ * Return: return 0 for success -1 for failure.  
+ **/
+int network_list_request(const char* server_port, const char* server_name, char* buffer){
+  // allocate enough memory for a header
+  int s;
+  int sock = socket(AF_INET, SOCK_STREAM, 0);
+  struct addrinfo hints, *result;
+  memset(&hints, 0, sizeof(struct addrinfo));
+  hints.ai_family = AF_INET; // IPv4
+  hints.ai_socktype = SOCK_STREAM; //TCP
+
+  s = getaddrinfo(server_name, server_port, &hints, &result);
+  if (s != 0) {
+    fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+    exit(1);
+  }
+
+  // TCP is connection oriented, a reliable connection
+  // **must** be established before any data is exchanged
+  if (connect(sock, result->ai_addr, result->ai_addrlen) < 0) {
+    perror("connect");
+    freeaddrinfo(result);
+    exit(1);
+  }
+
+  char* temp = malloc(sizeof(header));
+  memset(temp, '\0', sizeof(header));
+
+  //set header!
+  header x;
+  x.filesize = 0;
+  x.cmd = 'l';
+  memcpy(temp, &x, sizeof(header));
+
+  char* mesg = temp;
+  // send
+
+  // data that will be sent to the server
+  const char* data_to_send = mesg;
+  ssize_t retw =  write_to_socket(sock, data_to_send, sizeof(header));
+
+  free(temp);
+
+  // receive the header
+  char head [sizeof(header)];
+  ssize_t len = read_from_socket(sock, head, sizeof(header));
+  if (len < 0) {
+    return -1;
+  }
+
+  header r;
+  r = *(header*)head;
+  if (r.cmd!='l'){
+    return -1;
+  }
+
+  len = read_from_socket(sock, buffer, r.filesize);
+  if (len < 0){
+    return -1;
+  }
+
+  close(sock);
+  freeaddrinfo(result);
+
+  if (retw<0){
+    return -1;
+  }
   return 0;
 }
