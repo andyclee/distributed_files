@@ -345,5 +345,5 @@ int network_list_request(const char* server_port, const char* server_name, char*
   if (retw<0){
     return -1;
   }
-  return 0;
+  return r.filesize;
 }
