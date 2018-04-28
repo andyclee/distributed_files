@@ -70,16 +70,16 @@ int main(int argc, char** argv) {
 		}
 	}
 	else if (!strcmp(command, "list")) {
-		network_send_list(SERVER_PORT, SERVER_NAME);
-		size_t list_size = 0;
-		char* list = network_receive_list(SERVER_PORT, SERVER_NAME, &list_size);
-		if(list == NULL) {
+		char* buffer = malloc(WRITE_BUFF_SIZE);
+		int buf_size = network_list_request(SERVER_PORT, SERVER_NAME, buffer);
+		if(buf_size < 0) {
 			fprintf(stdout, "Failed to get list, please try again.\n");
 			return 1;
 		} 
+		buffer[buf_size] = '\0';
 		fprintf(stdout, "List of file:\n");
-		fprintf(stdout, "%s", list);
-		free(list);
+		fprintf(stdout, "%s", buffer);
+		free(buffer);
 	}
 	else {
 		fprintf(stdout, "Invalid command!\n");
