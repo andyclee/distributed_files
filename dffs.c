@@ -294,14 +294,15 @@ static int df_read(const char* path, char* buf, size_t size,
 	int slave_idx = find_file_on_server((char*)path);
 	if (slave_idx == -1) {
 		fprintf(stderr, "File was not found on any servers!\n");
-		return 1;
+		return -1;
 	}
 
 	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
-	int file_len;
+	size_t file_len;
 	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
+	buf = malloc(file_len);
 	memcpy(buf, received_data, file_len);
-	return 0;
+	return (int)file_len;
 }
 
 static int df_write_slave(const char* path, size_t slave_idx, const char* buf, size_t size) {

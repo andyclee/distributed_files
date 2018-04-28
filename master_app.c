@@ -14,6 +14,8 @@
 #include <fcntl.h>
 #include "client.h"
 
+static int endSession;
+
 char* create_full_path(char* path) {
 	char* prepend = "./ddfs/mountdir/";
 	char* full_path = malloc(strlen(path) + strlen(prepend) + 1);
@@ -68,85 +70,127 @@ void test_fs() {
 }
 
 void shutdown_server(int sock){
-  shutdown(sock, SHUT_RDWR);
-  close(sock);
+	shutdown(sock, SHUT_RDWR);
+	close(sock);
 }
 
 void send_error(int client_fd){
-  write_to_socket(client_fd, "ERROR", 5);
+	write_to_socket(client_fd, "ERROR", 5);
 }
 
 int run_master (const char* port) {
-  // start a server
-  int s;
-  int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-  int reuse = 1;
-  setsockopt(sock_fd,SOL_SOCKET,SO_REUSEADDR,(const char*)&reuse, sizeof(reuse));
+	// start a server
+	int s;
+	int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+	int reuse = 1;
+	setsockopt(sock_fd,SOL_SOCKET,SO_REUSEADDR,(const char*)&reuse, sizeof(reuse));
 
-  struct addrinfo hints, *result;
-  memset(&hints, 0, sizeof(struct addrinfo));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
+	struct addrinfo hints, *result;
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
 
-  s = getaddrinfo(NULL, port, &hints, &result);
-  if (s != 0) {
-          fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
-          exit(1);
-  }
+	s = getaddrinfo(NULL, port, &hints, &result);
+	if (s != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		exit(1);
+	}
 
-  if (bind(sock_fd, result->ai_addr, result->ai_addrlen) != 0) {
-      perror("bind()");
-      exit(1);
-  }
+	if (bind(sock_fd, result->ai_addr, result->ai_addrlen) != 0) {
+		perror("bind()");
+		exit(1);
+	}
 
-  if (listen(sock_fd, 10) != 0) {
-      perror("listen()");
-      exit(1);
-  }
+	if (listen(sock_fd, 10) != 0) {
+		perror("listen()");
+		exit(1);
+	}
 
-  struct sockaddr_in *result_addr = (struct sockaddr_in *) result->ai_addr;
-  printf("Listening on file descriptor %d, port %d\n", sock_fd, ntohs(result_addr->sin_port));
+	struct sockaddr_in *result_addr = (struct sockaddr_in *) result->ai_addr;
+	printf("Listening on file descriptor %d, port %d\n", sock_fd, ntohs(result_addr->sin_port));
 
-  freeaddrinfo(result);
+	freeaddrinfo(result);
 
-  int endSession = 0;
-  while(endSession == 0){
+	endSession = 0;
+	while(endSession == 0){
 
-    printf("Waiting for connection...\n");
-    int client_fd = accept(sock_fd, NULL, NULL);
-    printf("Connection made: client_fd=%d\n", client_fd);
+		printf("Waiting for connection...\n");
+		int client_fd = accept(sock_fd, NULL, NULL);
+		printf("Connection made: client_fd=%d\n", client_fd);
 
-    char head[sizeof(header)];
-    int len = read(client_fd, head, sizeof(header));
-    header x;
-    x = *(header*)head;
+		char head[sizeof(header)];
+		int len = read(client_fd, head, sizeof(header));
+		header x;
+		x = *(header*)head;
+		char* filename = x.filename;
+		char* full_path = create_full_path(filename);
+		uint32_t file_size = x.filesize;
 
-    // if anything went wrong use send_error(int client_fd) function
-    // shutdown connection with client after done
-    if (x.cmd=='u') {
-      // client requires upload
-   
-      
-    } else if (x.cmd=='d') {
-      // client requires download
+		// if anything went wrong use send_error(int client_fd) function
+		// shutdown connection with client after done
+		if (x.cmd=='u') { // client requires upload, write to slave
+			fprintf(stderr, "Handling upload\n");
+			int write_file = open(full_path, O_WRONLY | O_CREAT);
+			if (write_file == -1) {
+				fprintf(stderr, "errno: %d\n", errno);
+				send_error(client_fd);
+				close(client_fd);
+				free(full_path);
+				continue;
+			}
+			fprintf(stderr, "Writing to file\n");
+			char file_buff[file_size];
+			read_from_socket(client_fd, file_buff, file_size);
+			ssize_t bytes_written = write(write_file, file_buff, file_size);
+			if (bytes_written < 0) {
+				send_error(client_fd);
+				close(client_fd);
+				free(full_path);
+				continue;
+			}
+			fprintf(stderr, "Wrote %ld bytes\n", bytes_written);
+		}
+		else if (x.cmd=='d') { // client requires download, read from slave
+			fprintf(stderr, "Handling download\n");
+			int read_file = open(full_path, O_RDONLY);
+			char* file_buf = NULL;
+			int read_stat = read(read_file, file_buf, 0);
+			if (read_stat < 0) {
+				send_error(client_fd);
+				close(client_fd);
+				free(full_path);
+				free(file_buf);
+				continue;
+			}
+			header d_header;
+			d_header.filesize = read_stat;
+			d_header.cmd = 'd';
+			d_header.filename[strlen(filename)] = '\0';
+			memcpy(d_header.filename, filename, strlen(filename));
+			write_to_socket(client_fd, (char*)&d_header, sizeof(d_header));
+			write_to_socket(client_fd, file_buf, read_stat);
+			free(file_buf);
+		}
+		else if (x.cmd == 'l'){ // client requires list, readdir from slave
 
-      
-    } else if (x.cmd == 'l'){
-      // client requires list
 
+		}
+		else{
+			// unknown command
 
-    } else{
-      // unknown command
-      
-      printf("This is the command: %c\n",x.cmd);
-      printf("Command not recognizable.\n");
-    }
+			printf("This is the command: %c\n",x.cmd);
+			printf("Command not recognizable.\n");
+		}
 
-    // need to handle signal interrupt
- 
-    // need to close up slaves and shutdown this server
+		free(full_path);
 
+		// need to handle signal interrupt
+
+		// need to close up slaves and shutdown this server
+	}
+
+	return 0;
 }
 
 int main(int argc, char** argv) {
@@ -164,16 +208,18 @@ int main(int argc, char** argv) {
 		fprintf(stderr, "Unable to launch file system, exiting\n");
 		return 1;
 	}
+	sleep(1);
 
-	//Network connecting in infinite loop goes here
+	/*
 	if (debug) {
-		sleep(1);
 		test_fs();
 	}
+	*/
 
+	//Network connecting in infinite loop goes here
 	//TODO: ACCEPT CLIENTS
-        const char* port = 
-	run_master();
+        const char* port = "8000";
+	run_master(port);
 
 	return 0;
 }

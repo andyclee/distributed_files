@@ -30,8 +30,8 @@ client: network_client
 network_client:
 	$(COMPILER) -c $(COMPILE_FLAGS) client.c
 
-master: ddfs
-	$(COMPILER) $(COMPILE_FLAGS) -o master_app master_app.c
+master: ddfs network_client
+	$(COMPILER) $(COMPILE_FLAGS) client.o -o master_app master_app.c
 
 clean:
 	@-rm -f dffs
