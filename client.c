@@ -69,7 +69,7 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
     return -1;
   }
 
-  char statBuf[6];
+/*  char statBuf[6];
   memset(statBuf, '\0',6);  
   int retr = read(sock,statBuf,6);
   if (retr>0){
@@ -77,7 +77,7 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
       free(temp);
       return -1;
     }
-  }
+  }*/
 
   free(temp);
   return x.filesize;
@@ -168,17 +168,6 @@ ssize_t network_send (char* buffer, const char* filename, const char* server_por
 
   ssize_t stat= -1;
   stat = send_s(sock, buffer, filename, filelen);
-
-  // print result
-/*  if (stat > 0) {
-    // check the status from server
-    char statBuf[6];
-    memset(statBuf, '\0', 6);
-    read(sock, statBuf, 6);
-    if (strncmp(statBuf,"ERROR",5)==0) {
-      stat = -1;
-    }
-  }*/
 
   // close the socket
   close(sock);
