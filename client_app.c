@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
 		fprintf(stdout, "Uploading file %s...\n", filename);
 		FILE* push_file = fopen(filename, "r");
 		if(push_file == NULL) {
-			fprintf(stdout, "Failed to find file %sn", filename);
+			fprintf(stdout, "Failed to find file %s\n", filename);
 			print_usage();
 			return 1;
 		}
