@@ -43,8 +43,8 @@ ssize_t read_from_socket(int socket, char* buffer, size_t count){
 **/
 ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 
-  char* temp = malloc(sizeof(header)+filelen+1);
-  memset(temp, '\0', sizeof(header)+filelen+1);
+  char* temp = malloc(sizeof(header)+filelen);
+  memset(temp, '\0', sizeof(header)+filelen);
   strncpy(temp+sizeof(header), buffer, filelen);
 
   //set header!
