@@ -9,14 +9,18 @@
 
 #define WRITE_BUFF_SIZE 4096
 #define SERVER_PORT "8000"
-#define SERVER_NAME "localhost"
+#define SERVER_NAME "172.22.149.13"
 
 void print_usage() {
 	fprintf(stdout, "USAGE: ./dist_file <COMMAND> <FILENAME>\nValid <COMMAND>s: upload, download, list\n");
 }
 
 int main(int argc, char** argv) {
-	if (argc < 3 || argc > 3) {
+	if (argc < 2 || argc > 3) {
+		print_usage();
+		return 1;
+	}
+	if(argc == 2 && strcmp(argv[1], "list") != 0) {
 		print_usage();
 		return 1;
 	}
