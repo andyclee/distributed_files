@@ -3,7 +3,8 @@ FUSE_FLAGS = -D_FILE_OFFSET_BITS=64
 COMPILE_FLAGS = -Wall -Wextra
 ROOT_DIR = ddfs/rootdir
 MOUNT_DIR = ddfs/mountdir
-DFFS_DEP = compression.o encryption.o client.o
+DFFS_DEP = client.o
+COMP_ENC = compression.o encryption.o
 
 .PHONY: ddfs
 
@@ -24,8 +25,8 @@ ddfs: $(DFFS_DEP)
 	$(COMPILER) -c $(COMPILE_FLAGS) $*.c
 	$(COMPILER) -MM $(COMPILE_FLAGS) $*.c > $*.d
 
-client: network_client
-	$(COMPILER) $(COMPILE_FLAGS) client.o compression.o encryption.o -o client_app client_app.c
+client: network_client $(COMP_ENC)
+	$(COMPILER) $(COMPILE_FLAGS) $(COMP_ENC) client.o -o client_app client_app.c
 
 network_client:
 	$(COMPILER) -c $(COMPILE_FLAGS) client.c

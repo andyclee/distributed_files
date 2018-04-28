@@ -64,8 +64,21 @@ void test_fs() {
 		return;
 	}
 	fprintf(stderr, "Writing to file\n");
-	size_t bytes_written = write(write_file, test_buff, file_size);
-	fprintf(stderr, "Wrote %zu bytes\n", bytes_written);
+	ssize_t bytes_written = write(write_file, test_buff, file_size);
+	fprintf(stderr, "Wrote %ld bytes\n", bytes_written);
+	if (bytes_written == -1) {
+		fprintf(stderr, "Error in write, exiting\n");
+		exit(1);
+	}
+	close(write_file);
+
+	int read_file = open(full_path, O_RDONLY);
+	char* file_buf = NULL;
+	int read_stat = read(read_file, file_buf, 0);
+	fprintf(stderr, "%s", file_buf);
+	free(file_buf);
+	close(read_file);
+
 	free(full_path);
 }
 
@@ -195,26 +208,27 @@ int run_master (const char* port) {
 
 int main(int argc, char** argv) {
 	bool debug = false;
+	bool test = false;
 	if (argc > 1) {
 		if (!strcmp(argv[1], "debug"))
 			debug = true;
+		else if (!strcmp(argv[1], "test"))
+			test = true;
 		else {
 			print_invalid_option();
 			return 1;
 		}
 	}
-	int fs_stat = launch_fs(debug);
+	int fs_stat = launch_fs(debug || test);
 	if (fs_stat == -1) {
 		fprintf(stderr, "Unable to launch file system, exiting\n");
 		return 1;
 	}
 	sleep(1);
 
-	/*
-	if (debug) {
+	if (test) {
 		test_fs();
 	}
-	*/
 
 	//Network connecting in infinite loop goes here
 	//TODO: ACCEPT CLIENTS

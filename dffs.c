@@ -13,17 +13,17 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <errno.h>
-#include "compression.h"
 #include "client.h"
 
 #define SLAVE_COUNT 3
 #define BUFFER_SIZE 16
 #define DF_DATA ((struct df_data*) fuse_get_context()->private_data)
 #define SERVER_PORT "8000"
+#define FN_SIZE 1024
 
 typedef struct df_data {
 	char* rootFile;
-	char* slave_loc[SLAVE_COUNT];
+	char slave_loc[SLAVE_COUNT][FN_SIZE];
 } df_data;
 
 typedef struct file_data {
@@ -60,6 +60,7 @@ char* itoa(int value, char* result, int base) {
 
 /* 
  * THIS IS HEAP ALLOCATED
+ * Returns a metadata line parsed into a convenient struct
  */
 file_data* get_file_data(char* file_info) {
 	file_data* fd = malloc(sizeof(file_data));
@@ -79,6 +80,9 @@ size_t get_slave_size(char* slave_info) {
 	return strtol(slave_info, NULL, 10);
 }
 
+/*
+ * Similar to get full path type helpers
+ */
 char* get_slave_fn(int slave_idx, char* slave_name) {
 		strcpy(slave_name, "ddfs/slave");
 		char slave_num[5];
@@ -90,8 +94,7 @@ char* get_slave_fn(int slave_idx, char* slave_name) {
 
 /*
  * Toy getattr function just to test if filesystem properly mounts
- * Code taken from tutorial:
- * http://www.maastaar.net/fuse/linux/filesystem/c/2016/05/21/writing-a-simple-filesystem-using-fuse/
+ * May be useful in future for quick lookups
  */
 static int df_getattr(const char* path, struct stat* st) {
 	fprintf(stderr, "getattr called on path : %s\n", path);
@@ -154,6 +157,9 @@ static int df_readdir(const char* path, void* buf, fuse_fill_dir_t filler,
 	return 0;
 }
 
+/*
+ * Checks if slave contains a file by parsing CSV file
+ */
 int slave_contains(const char* slave, const char* target_file) {
 	FILE* slave_file = fopen(slave, "r");
 	if (slave_file == NULL) {
@@ -215,11 +221,13 @@ int find_file_on_server(char* path) {
 }
 /*
  * This method is so dumb but it works
+ * Updates CSV file by terrible, terrible file manipulation
  */
 int update_slave_metadata(char* target_file, int file_size, int slave_idx) {
 	fprintf(stderr, "Updating slave metadata for %s to size %d on slave %d\n",
 			target_file, file_size, slave_idx);
 	char slave_fn[128];
+	slave_fn[0] = '\0';
 	get_slave_fn(slave_idx, slave_fn);
 	FILE* slave_file = fopen(slave_fn, "r+");
 	if (slave_file == NULL) {
@@ -251,7 +259,9 @@ int update_slave_metadata(char* target_file, int file_size, int slave_idx) {
 int add_slave_metadata(char* target_file, int file_size, int slave_idx) {
 	fprintf(stderr, "Adding file %s of size %d to slave %d\n", target_file, file_size, slave_idx);
 	char slave_fn[128];
+	slave_fn[0] = '\0';
 	get_slave_fn(slave_idx, slave_fn);
+	fprintf(stderr, "Writing to slave_fn: %s\n", slave_fn);
 	FILE* slave_file = fopen(slave_fn, "a");
 	if (slave_file == NULL) {
 		return -1;
@@ -300,20 +310,27 @@ static int df_read(const char* path, char* buf, size_t size,
 	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
 	size_t file_len;
 	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
+	//TODO: Decompress
 	buf = malloc(file_len);
 	memcpy(buf, received_data, file_len);
 	return (int)file_len;
 }
 
-static int df_write_slave(const char* path, size_t slave_idx, const char* buf, size_t size) {
-	(void) size;
-	(void) slave_idx;
+static int df_write_slave(const char* path, int slave_idx, const char* buf, size_t size) {
 	//Sends request to slave
-	int data_size;
-	char* comp_enc = compress((char*)buf, &data_size);
-	int net_stat = network_send(comp_enc, path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], data_size);
-	free(comp_enc);
-	return net_stat;
+	fprintf(stderr, "In write_slave helper, slave_idx %d\n", slave_idx);
+	fprintf(stderr, "Rootdir: %s\n", DF_DATA->rootFile);
+	fprintf(stderr, "About to network send to: %s\n", DF_DATA->slave_loc[slave_idx]);
+	int net_stat = network_send((char*)buf, path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], size);
+	fprintf(stderr, "Network status: %d\n", net_stat);
+	return size;
+
+	/*
+	if (net_stat)
+		return data_size;
+	else
+		return net_stat;
+	*/
 }
 
 static int df_write(const char* path, const char* buf, size_t size, 
@@ -393,19 +410,20 @@ static struct fuse_operations df_oper = {
 	.init		= df_init,
 };
 
-/*
-void set_slave_locations() {
-
+void set_slave_locations(df_data* dfd) {
+	char* slave_loc0 = "localhost";
+	char* slave_loc1 = "localhost";
+	char* slave_loc2 = "localhost";
+	strcpy(dfd->slave_loc[0], slave_loc0);
+	strcpy(dfd->slave_loc[1], slave_loc1);
+	strcpy(dfd->slave_loc[2], slave_loc2);
 }
-*/
 
 int main(int argc, char* argv[]) {
 	//This data is malloc'd but will be used for the lifetime of the filesystem
 	df_data* dfd = malloc(sizeof(df_data));
 
-	dfd->slave_loc[0] = "localhost";
-	dfd->slave_loc[1] = "localhost";
-	dfd->slave_loc[2] = "localhost";
+	set_slave_locations(dfd);
 
 	argv[argc - 2] = argv[argc - 1];
 	argv[argc - 1] = NULL;
