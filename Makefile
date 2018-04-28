@@ -25,7 +25,7 @@ ddfs: $(DFFS_DEP)
 	$(COMPILER) -MM $(COMPILE_FLAGS) $*.c > $*.d
 
 client: network_client
-	$(COMPILER) $(COMPILE_FLAGS) client.o -o client_app client_app.c
+	$(COMPILER) $(COMPILE_FLAGS) client.o compression.o encryption.o -o client_app client_app.c
 
 network_client:
 	$(COMPILER) -c $(COMPILE_FLAGS) client.c
