@@ -73,7 +73,7 @@ void test_fs() {
 	close(write_file);
 
 	int read_file = open(full_path, O_RDONLY);
-	char* file_buf = NULL;
+	char* file_buf = malloc(0);
 	int read_stat = read(read_file, file_buf, 0);
 	if (read_stat == -1) {
 		fprintf(stderr, "Error in read, exiting\n");

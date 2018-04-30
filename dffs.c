@@ -328,14 +328,11 @@ static int df_read(const char* path, char* buf, size_t size,
 		return -1;
 	}
 
-	fprintf(stderr, "File was found on server idx: %d\n", slave_idx);
 	size_t file_len = 0;
 	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
-	fprintf(stderr, "Returned from network_receive call with file_len: %zu\n", file_len);
 	if (!file_len)
 		return 0;
-	buf = malloc(file_len);
-	fprintf(stderr, "Past malloc\n");
+	buf = realloc(buf, file_len);
 	memcpy(buf, received_data, file_len);
 	return (int)file_len;
 }
