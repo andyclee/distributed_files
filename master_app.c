@@ -75,6 +75,10 @@ void test_fs() {
 	int read_file = open(full_path, O_RDONLY);
 	char* file_buf = NULL;
 	int read_stat = read(read_file, file_buf, 0);
+	if (read_stat == -1) {
+		fprintf(stderr, "Error in read, exiting\n");
+		exit(1);
+	}
 	fprintf(stderr, "%s", file_buf);
 	free(file_buf);
 	close(read_file);

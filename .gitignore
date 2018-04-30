@@ -2,6 +2,7 @@
 client_app
 dffs
 master_app
+slave_app
 
 #Misc
 *.swp

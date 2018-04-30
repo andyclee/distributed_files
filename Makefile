@@ -3,6 +3,7 @@ FUSE_FLAGS = -D_FILE_OFFSET_BITS=64
 COMPILE_FLAGS = -Wall -Wextra
 ROOT_DIR = ddfs/rootdir
 MOUNT_DIR = ddfs/mountdir
+SLAVE_DIR = slave_files
 DFFS_DEP = client.o
 COMP_ENC = compression.o encryption.o
 
@@ -35,6 +36,7 @@ master: ddfs network_client
 	$(COMPILER) $(COMPILE_FLAGS) client.o -o master_app master_app.c
 
 slave:
+	@mkdir -p $(SLAVE_DIR)
 	$(COMPILER) $(COMPILE_FLAGS) -o slave_app slave_app.c
 
 clean:

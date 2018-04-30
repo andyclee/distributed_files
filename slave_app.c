@@ -1,12 +1,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+
+static char* file_dir = "slave_files";
 
 typedef struct header_t{
   // u for upload, d for download
@@ -21,6 +25,11 @@ int upload_f(const char *filename, const char* buffer);
 int download_f (int sock, const char* filename);
 int server_main(const char* port);
 
+void get_path(const char* filename, char* fn_buff) {
+	strcpy(fn_buff, file_dir);
+	strcat(fn_buff, filename);
+}
+
 int main(int argc, char **argv)
 {
   if (argc<2) {
@@ -33,8 +42,9 @@ int main(int argc, char **argv)
 
 int upload_f(const char *filename, const char* buffer){
   FILE* fd;
-  fd = fopen(filename, "w");
+  fd = fopen(filename, "w+");
   if (fd==NULL){
+	  fprintf(stderr, "upload_f had NULL FILE\n");
     return -1;
   }else{
     fputs(buffer,fd);
@@ -46,8 +56,10 @@ int upload_f(const char *filename, const char* buffer){
 int download_f (int sock, const char* filename) {
   char* mesg;
 
+  char fn_buff[strlen(file_dir) + strlen(filename) + 1];
+  get_path(filename, fn_buff);
   FILE* fd;
-  fd = fopen(filename,"r");
+  fd = fopen(fn_buff,"r");
   if (fd == NULL){
     perror("File does not exist\n");
     return -1;
@@ -87,6 +99,13 @@ int download_f (int sock, const char* filename) {
 }
 
 int server_main(const char* port) {
+  DIR* dir = opendir(file_dir);
+  if (dir)
+    closedir(dir);
+  else if (errno == ENOENT) {
+    fprintf(stderr, "Error: File directory does not exist, try running make again\n");
+    exit(1);
+  }
   int s;
   int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
   int reuse = 1;
@@ -145,6 +164,9 @@ int server_main(const char* port) {
       return 2;
     }
 
+    char fn_buff[strlen(file_dir) + 31 + 1];
+    get_path(x.filename, fn_buff);
+    fprintf(stderr, "Full filepath is: %s\n", fn_buff);
     int stat = 0;
     if (flag==0) {
       char buffer[x.filesize+1];
@@ -158,7 +180,7 @@ int server_main(const char* port) {
       }
 
       buffer[x.filesize] = '\0';
-      stat=upload_f(x.filename, buffer);
+      stat=upload_f(fn_buff, buffer);
     }else if (flag == 1){
       stat=download_f(client_fd, x.filename);
     }
