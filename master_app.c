@@ -171,7 +171,7 @@ int run_master (const char* port) {
 		else if (x.cmd=='d') { // client requires download, read from slave
 			fprintf(stderr, "Handling download\n");
 			int read_file = open(full_path, O_RDONLY);
-			char* file_buf = NULL;
+			char* file_buf = malloc(0);
 			int read_stat = read(read_file, file_buf, 0);
 			if (read_stat < 0) {
 				send_error(client_fd);
