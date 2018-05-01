@@ -9,7 +9,7 @@
 
 #define WRITE_BUFF_SIZE 4096
 #define SERVER_PORT "8000"
-#define SERVER_NAME "172.22.149.13"
+#define SERVER_NAME "localhost"
 
 void print_usage() {
 	fprintf(stdout, "USAGE: ./dist_file <COMMAND> <FILENAME>\nValid <COMMAND>s: upload, download, list\n");
@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
 		fseek(push_file, 0, SEEK_SET);
 		fread(buffer, 1, total_bytes, push_file);
 
+		fprintf(stderr, "Total_bytes: %zu\n", total_bytes);
 		int result = network_send(buffer, filename, SERVER_PORT, SERVER_NAME, total_bytes);
 		free(buffer);
 		if(result < 0) {

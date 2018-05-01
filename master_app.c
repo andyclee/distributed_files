@@ -143,6 +143,7 @@ int run_master (const char* port) {
 		char* filename = x.filename;
 		char* full_path = create_full_path(filename);
 		uint32_t file_size = x.filesize;
+		fprintf(stderr, "File size from client: %zu\n", file_size);
 
 		// if anything went wrong use send_error(int client_fd) function
 		// shutdown connection with client after done

@@ -393,7 +393,7 @@ static int df_write(const char* path, const char* buf, size_t size,
 }
 
 void set_slave_locations(df_data* dfd) {
-	char* slave_loc0 = "localhost";
+	char* slave_loc0 = "sp18-cs241-307.cs.illinois.edu";
 	char* slave_loc1 = "localhost";
 	char* slave_loc2 = "localhost";
 	strcpy(dfd->slave_loc[0], slave_loc0);
