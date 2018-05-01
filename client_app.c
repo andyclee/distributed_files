@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "client.h"
+#include "compression.h"
 
 #define WRITE_BUFF_SIZE 4096
 #define SERVER_PORT "8000"
@@ -44,8 +45,12 @@ int main(int argc, char** argv) {
 		fread(buffer, 1, total_bytes, push_file);
 
 		fprintf(stderr, "Total_bytes: %zu\n", total_bytes);
-		int result = network_send(buffer, filename, SERVER_PORT, SERVER_NAME, total_bytes);
+		
+		int compress_size = 0;
+		char* compress_buf = compress(buffer, &compress_size);
+		int result = network_send(compress_buf, filename, SERVER_PORT, SERVER_NAME, compress_size);
 		free(buffer);
+		free(compress_buf);
 		if(result < 0) {
 		    	fprintf(stdout, "Failed to upload file %s, please try again.\n", filename);
 			return 1;
@@ -62,15 +67,18 @@ int main(int argc, char** argv) {
 			fprintf(stdout, "Failed to download file %s, please try again.\n", filename);
 			return 1;
 		} 
+		char* decompress_buf = decompress(buffer, (int)file_size);
 		FILE* pull_file = fopen(filename, "w");
 		if(pull_file == NULL) {
 			fprintf(stdout, "Succeed in downloading, failed to write to file %s\n", filename);
 			free(buffer);
+			free(decompress_buf);
 			return 1;
 		} else {
-			fputs(buffer, pull_file);
+			write(fileno(pull_file), decompress_buf, file_size);
 			fclose(pull_file);
 			free(buffer);
+			free(decompress_buf);
 			fprintf(stdout, "Successfully download file %s\n", filename);
 		}
 	}
