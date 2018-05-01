@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include "compression.h"
+#include "encryption.h"
 
 static char* file_dir = "slave_files";
 
@@ -21,7 +23,7 @@ typedef struct header_t{
   char filename[31];
 } header;
 
-int upload_f(const char *filename, const char* buffer, uint32_t filesize);
+int upload_f(const char *filename, char* buffer, uint32_t filesize);
 int download_f (int sock, const char* filename);
 int server_main(const char* port);
 
@@ -40,13 +42,14 @@ int main(int argc, char **argv)
   return 0;
 }
 
-int upload_f(const char *filename, const char* buffer, uint32_t filesize){
+int upload_f(const char *filename, char* buffer, uint32_t filesize){
   FILE* fd;
   fd = fopen(filename, "w+");
   if (fd==NULL){
 	  fprintf(stderr, "upload_f had NULL FILE\n");
     return -1;
   }else{
+    //char* decompress_buf = decompress(buffer, filesize);
     write(fileno(fd), buffer, filesize);
     fclose(fd);
   }
