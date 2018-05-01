@@ -50,6 +50,7 @@ int upload_f(const char *filename, char* buffer, uint32_t filesize){
     return -1;
   }else{
     //char* decompress_buf = decompress(buffer, filesize);
+    //fprintf(stderr, "%s\n", decompress_buf);
     write(fileno(fd), buffer, filesize);
     fclose(fd);
   }

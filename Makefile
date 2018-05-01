@@ -37,7 +37,7 @@ master: ddfs network_client
 
 slave:
 	@mkdir -p $(SLAVE_DIR)
-	$(COMPILER) $(COMPILE_FLAGS) -o slave_app slave_app.c
+	$(COMPILER) $(COMPILE_FLAGS) $(COMP_ENC) -o slave_app slave_app.c
 
 clean:
 	@-rm -f dffs
