@@ -202,7 +202,7 @@ static int df_create(const char* path, mode_t mode, struct fuse_file_info* fi) {
  */
 static int df_open(const char* path, struct fuse_file_info* fi) {
 	fprintf(stderr, "Attempting to open: %s\n", path);
-	(void) fi;
+	fi->direct_io = 1;
 	char slave_fn[128];
 	for (int s = 0; s < SLAVE_COUNT; s++) {
 		get_slave_fn(s, slave_fn);
@@ -318,7 +318,6 @@ int update_all_metadata(int slave_idx, int del_size) {
 static int df_read(const char* path, char* buf, size_t size, 
 		off_t offset, struct fuse_file_info* fi) {
 	fprintf(stderr, "Attempting to read: %s\n", path);
-	(void) size;
 	(void) offset;
 	(void) fi;
 
@@ -328,13 +327,13 @@ static int df_read(const char* path, char* buf, size_t size,
 		return -1;
 	}
 
-	size_t file_len = 0;
-	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &file_len);
-	if (!file_len)
+	char* received_data = network_receive(path, SERVER_PORT, DF_DATA->slave_loc[slave_idx], &size);
+	if (!size)
 		return 0;
-	buf = realloc(buf, file_len);
-	memcpy(buf, received_data, file_len);
-	return (int)file_len;
+	buf = realloc(buf, size);
+	memcpy(buf, received_data, size);
+	free(received_data);
+	return size;
 }
 
 static int df_write_slave(const char* path, int slave_idx, const char* buf, size_t size) {
@@ -406,6 +405,7 @@ void set_slave_locations(df_data* dfd) {
  * Does not create directories, handled in makefile
  */
 static void* df_init(struct fuse_conn_info* conn) {
+	fprintf(stdout, "Running FUSE version: %u\n", conn->proto_major);
 	char* all_file = get_real_file("all_servers.csv");
 	FILE* as_ptr = fopen(all_file, "r");
 	if (as_ptr == NULL) {

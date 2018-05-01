@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <limits.h>
 #include "client.h"
 
 static int endSession;
@@ -33,7 +34,7 @@ int launch_fs(bool debug) {
 		if (debug)
 			system("./dffs -d -o auto_unmount ddfs/rootdir ddfs/mountdir");
 		else
-			system("./dffs -o auto_unmount ddfs/rootdir ddfs/mountdir");
+			system("./dffs -d -o auto_unmount ddfs/rootdir ddfs/mountdir");
 		exit(2);
 	}
 	else {
@@ -137,13 +138,13 @@ int run_master (const char* port) {
 		printf("Connection made: client_fd=%d\n", client_fd);
 
 		char head[sizeof(header)];
-		int len = read(client_fd, head, sizeof(header));
+		read(client_fd, head, sizeof(header));
 		header x;
 		x = *(header*)head;
 		char* filename = x.filename;
 		char* full_path = create_full_path(filename);
 		uint32_t file_size = x.filesize;
-		fprintf(stderr, "File size from client: %zu\n", file_size);
+		fprintf(stderr, "File size from client: %u\n", file_size);
 
 		// if anything went wrong use send_error(int client_fd) function
 		// shutdown connection with client after done
@@ -172,8 +173,9 @@ int run_master (const char* port) {
 		else if (x.cmd=='d') { // client requires download, read from slave
 			fprintf(stderr, "Handling download\n");
 			int read_file = open(full_path, O_RDONLY);
-			char* file_buf = malloc(0);
-			int read_stat = read(read_file, file_buf, 0);
+			char* file_buf = malloc(1);
+			fprintf(stderr, "About to call fs read\n");
+			int read_stat = read(read_file, file_buf, 2048);
 			if (read_stat < 0) {
 				send_error(client_fd);
 				close(client_fd);
@@ -181,6 +183,7 @@ int run_master (const char* port) {
 				free(file_buf);
 				continue;
 			}
+			fprintf(stderr, "read_stat: %d\n", read_stat);
 			header d_header;
 			d_header.filesize = read_stat;
 			d_header.cmd = 'd';
@@ -188,7 +191,7 @@ int run_master (const char* port) {
 			memcpy(d_header.filename, filename, strlen(filename));
 			write_to_socket(client_fd, (char*)&d_header, sizeof(d_header));
 			write_to_socket(client_fd, file_buf, read_stat);
-			free(file_buf);
+			//free(file_buf);
 		}
 		else if (x.cmd == 'l'){ // client requires list, readdir from slave
 
@@ -236,7 +239,6 @@ int main(int argc, char** argv) {
 	}
 
 	//Network connecting in infinite loop goes here
-	//TODO: ACCEPT CLIENTS
         const char* port = "8000";
 	run_master(port);
 
