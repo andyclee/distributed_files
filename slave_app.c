@@ -21,7 +21,7 @@ typedef struct header_t{
   char filename[31];
 } header;
 
-int upload_f(const char *filename, const char* buffer);
+int upload_f(const char *filename, const char* buffer, uint32_t filesize);
 int download_f (int sock, const char* filename);
 int server_main(const char* port);
 
@@ -40,14 +40,14 @@ int main(int argc, char **argv)
   return 0;
 }
 
-int upload_f(const char *filename, const char* buffer){
+int upload_f(const char *filename, const char* buffer, uint32_t filesize){
   FILE* fd;
   fd = fopen(filename, "w+");
   if (fd==NULL){
 	  fprintf(stderr, "upload_f had NULL FILE\n");
     return -1;
   }else{
-    fputs(buffer,fd);
+    write(fileno(fd), buffer, filesize);
     fclose(fd);
   }
   return 0;
@@ -71,7 +71,8 @@ int download_f (int sock, const char* filename) {
     memset(buffer, '\0',sizeof(header)+len+1);
 
     fseek(fd,0,SEEK_SET);
-    fread(buffer+sizeof(header),1,len, fd);
+    fread(buffer + sizeof(header),1,len, fd);
+
     buffer[sizeof(header)+len] = '\0';
     fclose(fd);
 
@@ -180,7 +181,7 @@ int server_main(const char* port) {
       }
 
       buffer[x.filesize] = '\0';
-      stat=upload_f(fn_buff, buffer);
+      stat=upload_f(fn_buff, buffer, x.filesize);
     }else if (flag == 1){
       stat=download_f(client_fd, x.filename);
     }
