@@ -22,4 +22,4 @@ char* compress(char* str, int* compress_size);
    str - char array to be decompress
    @return a decompressed char array
 */
-char* decompress(char* str);
+char* decompress(char* str, int compress_size);
