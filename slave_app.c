@@ -12,7 +12,7 @@
 #include "compression.h"
 #include "encryption.h"
 
-static char* file_dir = "slave_files";
+static char* file_dir = "slave_files/";
 
 typedef struct header_t{
   // u for upload, d for download
@@ -49,8 +49,9 @@ int upload_f(const char *filename, char* buffer, uint32_t filesize){
 	  fprintf(stderr, "upload_f had NULL FILE\n");
     return -1;
   }else{
+    fprintf(stderr, "upload file %s\n", filename);
     //char* decompress_buf = decompress(buffer, filesize);
-    //fprintf(stderr, "%s\n", decompress_buf);
+    //fprintf(stderr, "size of decompress_buf:%zu\n", strlen(decompress_buf));
     write(fileno(fd), buffer, filesize);
     fclose(fd);
   }
@@ -95,6 +96,7 @@ int download_f (int sock, const char* filename) {
 
   // data that will be sent to the server
   const char* data_to_send = mesg;
+  fprintf(stderr, "download file %s\n", filename);
   int sentlen = send(sock, data_to_send, sizeof(header)+ x.filesize, 0);
   if (sentlen!=(int)(sizeof(header)+ x.filesize)){
     perror("Sent not successful\n");
@@ -174,19 +176,19 @@ int server_main(const char* port) {
     fprintf(stderr, "Full filepath is: %s\n", fn_buff);
     int stat = 0;
     if (flag==0) {
-      char buffer[x.filesize+1];
+      char buffer[x.filesize];
       if (x.filesize>130000){
         int len = 0;
         while (len<(int)x.filesize){
           len += read(client_fd, buffer+len, 130000);
         }
       }else{
-        read(client_fd, buffer, x.filesize);
+          read(client_fd, buffer, x.filesize);
       }
-
-      buffer[x.filesize] = '\0';
+      printf("Upload %d size\n", x.filesize);
       stat=upload_f(fn_buff, buffer, x.filesize);
     }else if (flag == 1){
+      printf("Download %d size\n", x.filesize);
       stat=download_f(client_fd, x.filename);
     }
 

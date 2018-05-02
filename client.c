@@ -49,6 +49,7 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 
   //set header!
   header x;
+  fprintf(stderr, "Send %zu bytes\n", filelen);
   x.filesize = filelen;
   x.cmd = 'u';
   strncpy(x.filename, filename, strlen(filename));
@@ -62,7 +63,7 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
   // data that will be sent to the server
   const char* data_to_send = mesg;
   ssize_t retw =  write_to_socket(sock, data_to_send, sizeof(header));
-  ssize_t retw2 = write_to_socket(sock, data_to_send+sizeof(header), x.filesize);
+  ssize_t retw2 = write_to_socket(sock, buffer, filelen);
 
   if (retw<0 || retw2<0) {
     free(temp);
