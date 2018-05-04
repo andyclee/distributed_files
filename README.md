@@ -12,7 +12,7 @@ USAGE:
 * Running only client_app and slave_app is working successfully just like a normal client-server connection 
 
 * client_app is run from the client machine, can upload, download, and list files:
-  Usage: ./client_app <COMMAND> <FILENAME> (Valid <COMMAND>s: upload, download, list)
+  Usage: ./client_app <command> <filename>
 * master_app is run on the master server, can run in debug mode with the 'debug' flag:
   Usage: ./master_app 
 * slave_app is run on the various slave servers, waits on master requests:
