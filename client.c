@@ -43,44 +43,28 @@ ssize_t read_from_socket(int socket, char* buffer, size_t count){
 **/
 ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 
-  char* temp = malloc(sizeof(header)+filelen);
-  memset(temp, '\0', sizeof(header)+filelen);
-  strncpy(temp+sizeof(header), buffer, filelen);
+  char temp[sizeof(header) + 1];
+  temp[sizeof(header)] = '\0';
+  memset(temp, '\0', sizeof(header)+1);
 
   //set header!
   header x;
-  fprintf(stderr, "Send %zu bytes\n", filelen);
-  x.filesize = filelen;
+  memset(&x, '\0', sizeof(header));
+  x.filesize = 0;
+  x.filesize = (uint32_t)filelen;
   x.cmd = 'u';
   strncpy(x.filename, filename, strlen(filename));
   x.filename[strlen(filename)] = '\0';
   memcpy(temp, &x, sizeof(header));
 
-  char* mesg = temp;
-
-  // send
-
-  // data that will be sent to the server
-  const char* data_to_send = mesg;
-  ssize_t retw =  write_to_socket(sock, data_to_send, sizeof(header));
+  // send data that will be sent to the server
+  ssize_t retw =  write_to_socket(sock, temp, sizeof(header));
   ssize_t retw2 = write_to_socket(sock, buffer, filelen);
 
-  if (retw<0 || retw2<0) {
-    free(temp);
+  if (retw<0|| retw2<0) {
     return -1;
   }
 
-/*  char statBuf[6];
-  memset(statBuf, '\0',6);  
-  int retr = read(sock,statBuf,6);
-  if (retr>0){
-    if (strncmp(statBuf, "ERROR",5)==0){
-      free(temp);
-      return -1;
-    }
-  }*/
-
-  free(temp);
   return x.filesize;
 }
 
@@ -90,9 +74,9 @@ ssize_t send_s(int sock, char* buffer, const char* filename, size_t filelen) {
 **/
 
 char* receive_s(int sock, const char* filename, size_t* filelen){
-
     char buffer[sizeof(header)];
     header x;
+    memset(&x, '\0', sizeof(header));
     x.filesize = 0;
     x.cmd = 'd';
     strncpy(x.filename, filename, strlen(filename));
@@ -106,11 +90,9 @@ char* receive_s(int sock, const char* filename, size_t* filelen){
     ssize_t head_size = write_to_socket(sock, data_to_send, sizeof(header));
 
     if (head_size < 0){
-        //  perror("sent wrong\n");
           return NULL;
     }
 
-    // receive
     //receive the string that contain the file
 
     char head [sizeof(header)];

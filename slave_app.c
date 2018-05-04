@@ -9,10 +9,14 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <stdint.h>
+#include <signal.h>
 #include "compression.h"
 #include "encryption.h"
 
+#define SERVER_PORT "8000";
+
 static char* file_dir = "slave_files/";
+static volatile int endSession;
 
 typedef struct header_t{
   // u for upload, d for download
@@ -32,12 +36,25 @@ void get_path(const char* filename, char* fn_buff) {
 	strcat(fn_buff, filename);
 }
 
+void close_server() {
+    endSession = 1;
+}
+
 int main(int argc, char **argv)
 {
-  if (argc<2) {
-    printf("USAGE: ./slave <port>");
+  if (argc > 2) {
+    printf("USAGE: ./slave_app");
   }
-  const char* port = argv[1];
+  (void) argv;
+  struct sigaction act;
+  memset(&act, '\0', sizeof(act));
+  act.sa_handler = close_server;
+  if(sigaction(SIGINT, &act, NULL) < 0) {
+      perror("sigaction");
+      return 1;
+  }
+
+  const char* port = SERVER_PORT;
   server_main(port);
   return 0;
 }
@@ -92,9 +109,7 @@ int download_f (int sock, const char* filename) {
 
   mesg = buffer;
 
-  // send
-
-  // data that will be sent to the server
+  // send data that will be sent to the server
   const char* data_to_send = mesg;
   fprintf(stderr, "download file %s\n", filename);
   int sentlen = send(sock, data_to_send, sizeof(header)+ x.filesize, 0);
@@ -143,10 +158,12 @@ int server_main(const char* port) {
   struct sockaddr_in *result_addr = (struct sockaddr_in *) result->ai_addr;
   printf("Listening on file descriptor %d, port %d\n", sock_fd, ntohs(result_addr->sin_port));
 
-  int endSession = 0;
+  endSession = 0;
   while(endSession == 0){
     printf("Waiting for connection...\n");
     int client_fd = accept(sock_fd, NULL, NULL);
+    if(endSession == 1) { break; }
+
     printf("Connection made: client_fd=%d\n", client_fd);
 
     char head[sizeof(header)];
@@ -185,10 +202,8 @@ int server_main(const char* port) {
       }else{
           read(client_fd, buffer, x.filesize);
       }
-      printf("Upload %d size\n", x.filesize);
       stat=upload_f(fn_buff, buffer, x.filesize);
     }else if (flag == 1){
-      printf("Download %d size\n", x.filesize);
       stat=download_f(client_fd, x.filename);
     }
 

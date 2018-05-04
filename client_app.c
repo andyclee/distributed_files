@@ -13,7 +13,7 @@
 #define SERVER_NAME "localhost"
 
 void print_usage() {
-	fprintf(stdout, "USAGE: ./dist_file <COMMAND> <FILENAME>\nValid <COMMAND>s: upload, download, list\n");
+	fprintf(stdout, "USAGE: ./client_app <COMMAND> <FILENAME>\nValid <COMMAND>s: upload, download, list\n");
 }
 
 int main(int argc, char** argv) {
@@ -39,24 +39,17 @@ int main(int argc, char** argv) {
 
 		fseek(push_file, 0, SEEK_END);
 		size_t total_bytes = ftell(push_file);
-		char* buffer = malloc(total_bytes);
+		char* buffer = malloc(total_bytes + 1);
 		
 		fseek(push_file, 0, SEEK_SET);
 		fread(buffer, 1, total_bytes, push_file);
-
-		fprintf(stderr, "Total_bytes: %zu\n", total_bytes);
+		buffer[total_bytes] = '\0';
 		
 		int compress_size = 0;
 		char* compress_buf = compress(buffer, &compress_size);
-		fprintf(stderr, "Compressed Size: %d\n", compress_size);
-		char* decompress_buf = decompress(compress_buf, compress_size);
-		FILE* tmp_file = fopen("tmp_file", "w+");
-		write(fileno(tmp_file), compress_buf, compress_size);
-		fclose(tmp_file);
-		fprintf(stderr, "Decompressed Size: %zu\n", strlen(decompress_buf));
-		if(strcmp(buffer, decompress_buf) == 0) {	
-		    fprintf(stderr, "Same file, success\n");	
-		}
+		
+		fprintf(stdout, "File size: %zu, sending compressed size: %d, compress rate: %lf\n", total_bytes, compress_size, (double) compress_size/total_bytes);
+
 		int result = network_send(compress_buf, filename, SERVER_PORT, SERVER_NAME, compress_size);
 		free(buffer);
 		free(compress_buf);
@@ -72,7 +65,6 @@ int main(int argc, char** argv) {
 		fprintf(stdout, "Downloading file %s...\n", filename);
 		size_t file_size = 0;
 		char* buffer = network_receive(filename, SERVER_PORT, SERVER_NAME, &file_size);
-		fprintf(stderr, "Receive size %zu\n", file_size);
 		
 		if(buffer == NULL) {
 			fprintf(stdout, "Failed to download file %s, please try again.\n", filename);
@@ -86,7 +78,6 @@ int main(int argc, char** argv) {
 			free(decompress_buf);
 			return 1;
 		} else {
-			fprintf(stderr, "Decompress bytes: %zu\n", strlen(decompress_buf));
 			write(fileno(pull_file), decompress_buf, strlen(decompress_buf));
 			fclose(pull_file);
 			free(buffer);
